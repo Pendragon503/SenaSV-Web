@@ -41,3 +41,9 @@ pnpm preview
 Consulta `public/model/README.md`. No deben presentarse etiquetas como reconocimiento LESSA hasta validar las clases, capturar el dataset y entrenar un modelo real.
 
 La investigación de fuentes y las reglas de uso de datos se documentan en `docs/FUENTES_Y_DATOS.md`.
+
+## Sitio público
+
+La rama `main` se compila y publica automáticamente con GitHub Actions en:
+
+https://pendragon503.github.io/SenaSV-Web/

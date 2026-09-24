@@ -10,6 +10,7 @@ const https = existsSync(certificatePath) && existsSync(privateKeyPath)
   : undefined;
 
 export default defineConfig({
+  base: '/SenaSV-Web/',
   server: { host: '0.0.0.0', https },
   preview: { host: '0.0.0.0', https },
   plugins: [

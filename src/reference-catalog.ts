@@ -6,6 +6,8 @@ export interface SignReference {
   note: string;
 }
 
+const baseUrl = import.meta.env.BASE_URL;
+
 const alphabetPages: Record<string, number> = {
   A: 13, B: 13, C: 13, CH: 13,
   D: 14, E: 14, F: 14, G: 14,
@@ -35,7 +37,7 @@ export function getReference(label: string): SignReference {
     return {
       label,
       page: alphabetPage,
-      image: `/references/modulo1/alphabet-${String(alphabetPage).padStart(3, '0')}.png`,
+      image: `${baseUrl}references/modulo1/alphabet-${String(alphabetPage).padStart(3, '0')}.png`,
       source: 'Módulo I LESSA, MINEDUCYT y Asociación Salvadoreña de Sordos, 2020',
       note: 'Referencia oficial precargada. Observa configuración, orientación y movimiento antes de capturar.',
     };
@@ -46,7 +48,7 @@ export function getReference(label: string): SignReference {
     return {
       label,
       page: numberPage,
-      image: `/references/modulo1/numbers-${String(numberPage).padStart(3, '0')}.png`,
+      image: `${baseUrl}references/modulo1/numbers-${String(numberPage).padStart(3, '0')}.png`,
       source: 'Módulo I LESSA, MINEDUCYT y Asociación Salvadoreña de Sordos, 2020',
       note: 'Referencia oficial precargada. Reproduce la configuración mostrada y captura varias rondas.',
     };

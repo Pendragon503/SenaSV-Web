@@ -12,7 +12,7 @@ import type { Prediction, RuntimeMetrics, ViewName } from './types';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
+    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((error: unknown) => {
       console.warn('No se pudo registrar el service worker.', error);
     });
   });
@@ -50,7 +50,7 @@ function shell(content: string): string {
   const consent = readTrainingConsent();
   return `<div class="app-shell">
     <header class="topbar">
-      <button class="brand" data-view="inicio" aria-label="Ir al inicio"><img src="/icon.svg" alt=""><span>SeñaSV Web</span></button>
+      <button class="brand" data-view="inicio" aria-label="Ir al inicio"><img src="${import.meta.env.BASE_URL}icon.svg" alt=""><span>SeñaSV Web</span></button>
       <nav class="nav" aria-label="Navegación principal">
         ${navButton('inicio', 'Inicio')}${navButton('entrenamiento', 'Entrenar')}${navButton('reconocimiento', 'Reconocer')}${navButton('diccionario', 'Diccionario')}${navButton('informacion', 'Proyecto')}
       </nav>
