@@ -51,13 +51,13 @@ function shell(content: string): string {
   const consent = readTrainingConsent();
   return `<div class="app-shell">
     <header class="topbar">
-      <button class="brand" data-view="inicio" aria-label="Ir al inicio"><img src="${import.meta.env.BASE_URL}icon.svg" alt=""><span>SeñaSV Web</span></button>
+      <button class="brand" data-view="inicio" aria-label="Ir al inicio"><img src="${import.meta.env.BASE_URL}icon.svg" alt=""><span><strong>SeñaSV</strong><small>Plataforma de investigación aplicada</small></span></button>
       <nav class="nav" aria-label="Navegación principal">
-        ${navButton('inicio', 'Inicio')}${navButton('entrenamiento', 'Entrenar')}${navButton('reconocimiento', 'Reconocer')}${navButton('diccionario', 'Diccionario')}${navButton('informacion', 'Proyecto')}
+        ${navButton('inicio', 'Inicio')}${navButton('entrenamiento', 'Entrenamiento')}${navButton('reconocimiento', 'Reconocimiento')}${navButton('diccionario', 'Catálogo')}${navButton('informacion', 'Institucional')}
       </nav>
     </header>
     <main class="main">${content}</main>
-    <footer class="footer">Prototipo académico ARC115 · Procesamiento local · LESSA pendiente de validación experta</footer>
+    <footer class="footer"><strong>SeñaSV</strong><span>Proyecto académico ARC115 · Procesamiento responsable de datos · LESSA sujeta a validación especializada</span></footer>
     ${consent === 'unset' ? consentBanner() : ''}
   </div>`;
 }
@@ -94,17 +94,18 @@ function render(view: ViewName): void {
 
 function homeView(): string {
   return `<section class="hero">
-    <div><p class="eyebrow">Investigación aplicada ARC115</p><h1>Reconocimiento local de LESSA</h1>
-    <p class="lead">Prototipo académico trazable: detecta manos, normaliza 21 puntos de referencia e integra TensorFlow.js. Las clases se documentan con fuentes salvadoreñas y el video permanece en el dispositivo.</p>
-    <div class="actions"><button class="button primary" data-view="entrenamiento">Entrenar señas</button><button class="button" data-view="reconocimiento">Aplicar lo aprendido</button></div></div>
-    <div class="hero-card" aria-hidden="true"><span class="pill one">${pilotClasses.length} clases piloto</span><div class="hero-symbol">🤟</div><span class="pill two">PWA · inferencia local</span></div>
+    <div class="hero-copy"><p class="eyebrow">Tecnología inclusiva · Investigación aplicada</p><h1>Plataforma de reconocimiento de LESSA</h1>
+    <p class="lead">Entorno académico para la captura responsable, el análisis geométrico y el reconocimiento asistido de configuraciones manuales de la Lengua de Señas Salvadoreña.</p>
+    <div class="actions"><button class="button primary" data-view="reconocimiento">Iniciar reconocimiento</button><button class="button" data-view="entrenamiento">Contribuir al entrenamiento</button></div>
+    <div class="trust-row"><span>Procesamiento local</span><span>Consentimiento informado</span><span>Fuentes institucionales</span></div></div>
+    <div class="hero-card" aria-hidden="true"><div class="hero-card-head"><span>SEÑASV · ARC115</span><span class="operational-dot">Operativo</span></div><div class="hero-mark"><small>LESSA</small><strong>SV</strong></div><div class="hero-stats"><div><strong>${pilotClasses.length}</strong><span>clases piloto</span></div><div><strong>21</strong><span>puntos por mano</span></div><div><strong>100%</strong><span>procesamiento privado</span></div></div></div>
   </section>`;
 }
 
 function recognitionView(): string {
   const readyAlphabet = personalClassifier.readyLabels(new Set(alphabetLabels));
   const availableAlphabet = [...new Set([...DEFAULT_ALPHABET_LABELS, ...readyAlphabet])];
-  return `<section class="section-heading"><p class="eyebrow">Prototipo 0.1</p><h1>Reconocimiento en vivo</h1><p>La cámara y MediaPipe operan localmente. El resultado solo se considera una seña real cuando se cargue un modelo entrenado y validado con datos de LESSA.</p></section>
+  return `<section class="section-heading"><p class="eyebrow">Módulo operativo · Versión 0.1</p><h1>Reconocimiento en tiempo real</h1><p>La captura y el procesamiento visual se realizan localmente. Los resultados corresponden a un prototipo académico y requieren validación especializada antes de cualquier aplicación institucional.</p></section>
   <div class="recognition-layout">
     <section class="panel" aria-label="Cámara">
       <div class="camera-stage"><video id="camera" playsinline muted></video><canvas id="overlay"></canvas><div class="camera-placeholder" id="camera-placeholder"><strong>Cámara detenida</strong>Pulsa iniciar y concede permiso para comenzar.</div></div>
@@ -128,7 +129,7 @@ function trainingView(): string {
     : consent === 'declined'
       ? 'No autorizaste guardar muestras. Puedes cambiar esta decisión para colaborar con el entrenamiento.'
       : 'Antes de capturar debes aceptar la autorización de datos de entrenamiento.';
-  return `<section class="section-heading"><p class="eyebrow">Dataset personal</p><h1>Entrenar una seña</h1><p>Esta pantalla únicamente captura landmarks etiquetados. No intenta reconocer ni reproduce voz mientras estás grabando.</p></section>
+  return `<section class="section-heading"><p class="eyebrow">Gestión de datos · Participación voluntaria</p><h1>Entrenamiento supervisado</h1><p>Registra configuraciones manuales etiquetadas para mejorar el conjunto de aprendizaje. Durante este proceso no se ejecuta reconocimiento ni síntesis de voz.</p></section>
   <div class="training-layout">
     <section class="panel" aria-label="Cámara de entrenamiento">
       <div class="camera-stage"><video id="camera" playsinline muted></video><canvas id="overlay"></canvas><div class="camera-placeholder" id="camera-placeholder"><strong>Cámara detenida</strong>Inicia la cámara para capturar muestras.</div></div>
@@ -136,11 +137,11 @@ function trainingView(): string {
     </section>
     <aside class="panel training-panel">
       <div class="training-consent" data-state="${consent}"><strong>Datos que se guardarán</strong><p>${consentMessage}</p><ul><li>Etiqueta de la letra o número.</li><li>126 valores X, Y y Z normalizados de 21 puntos por espacio de mano.</li><li>Fecha técnica y versiones del consentimiento y de la aplicación.</li><li>Identificador aleatorio convertido en hash por el servidor.</li><li>Hasta 40 muestras locales por etiqueta.</li></ul><p><strong>No se guardan:</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y borrar datos pendientes de este dispositivo</button>'}</div>
-      <p class="step-label">Paso 1</p><h2>Selecciona la clase</h2>
+      <p class="step-label">Etapa 01</p><h2>Selección de categoría</h2>
       <label for="training-label">Letra o número</label><select id="training-label">${trainingLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</select>
       <figure class="training-reference" id="training-reference"><img id="training-reference-image" src="${initialReference.image}" alt="Página de referencia para ${initialReference.label}"><figcaption><strong id="training-reference-title">Referencia para ${initialReference.label}</strong><span id="training-reference-note">${initialReference.note}</span><small id="training-reference-source">${initialReference.source} · página ${initialReference.page}</small></figcaption></figure>
-      <p class="step-label">Paso 2</p><h2>Coloca la mano</h2><p>Mantén una sola mano completa, vertical y centrada. Cambia ligeramente distancia y ángulo entre rondas.</p>
-      <p class="step-label">Paso 3</p><h2>Captura muestras</h2>
+      <p class="step-label">Etapa 02</p><h2>Preparación de captura</h2><p>Mantén una sola mano completa, vertical y centrada. Modifica ligeramente la distancia y el ángulo entre rondas.</p>
+      <p class="step-label">Etapa 03</p><h2>Registro de muestras</h2>
       <button class="button primary full" id="capture-button" disabled>Capturar 12 muestras</button>
       <button class="button full" id="clear-class-button">Borrar muestras de esta clase</button>
       <div class="training-progress"><div id="training-progress-fill"></div></div>
@@ -152,7 +153,7 @@ function trainingView(): string {
 }
 
 function dictionaryView(): string {
-  return `<section class="section-heading"><p class="eyebrow">Catálogo trazable</p><h1>Clases de reconocimiento</h1><p>La presencia de una palabra en una fuente no autoriza a copiar sus videos. El modelo se entrenará con grabaciones propias consentidas, después de validar la realización de cada seña.</p></section>
+  return `<section class="section-heading"><p class="eyebrow">Gobernanza y trazabilidad</p><h1>Catálogo de reconocimiento</h1><p>Inventario documentado de clases, fuentes y estado de validación. La referencia bibliográfica no autoriza la incorporación de material audiovisual al conjunto de entrenamiento.</p></section>
   <div class="catalog-summary"><div><strong>${pilotClasses.length}</strong><span>clases del piloto</span></div><div><strong>${signCatalog.length}</strong><span>clases documentadas</span></div><div><strong>${sources.length}</strong><span>fuentes institucionales</span></div></div>
   <div class="class-table" role="table" aria-label="Catálogo de clases">
     <div class="class-row class-header" role="row"><span>Clase</span><span>Categoría</span><span>Estado</span><span>Validación</span></div>
@@ -162,7 +163,7 @@ function dictionaryView(): string {
 }
 
 function infoView(): string {
-  return `<section class="section-heading"><p class="eyebrow">SeñaSV Web</p><h1>Acerca del proyecto</h1><p>Una sola base de código para Android, iOS, Raspberry Pi y computadoras, con énfasis en privacidad, bajo costo y medición de desempeño.</p></section>
+  return `<section class="section-heading"><p class="eyebrow">Marco institucional</p><h1>Información del proyecto</h1><p>Arquitectura multiplataforma orientada a investigación académica, accesibilidad, privacidad y medición verificable del desempeño.</p></section>
   <div class="info-grid"><article><h2>Flujo técnico</h2><ol><li>Permiso y captura de cámara.</li><li>Detección de hasta dos manos.</li><li>Normalización de landmarks.</li><li>Inferencia TensorFlow.js.</li><li>Etiqueta, confianza y voz opcional.</li></ol></article><article><h2>Privacidad</h2><p>Los fotogramas se procesan dentro del navegador. El prototipo no incluye carga de imágenes o video a servidores.</p></article><article><h2>Gobernanza de datos</h2><p>Solo se incorporarán grabaciones con consentimiento, código anónimo de signante y finalidad académica documentada. Las referencias en línea no se copiarán al dataset sin licencia o permiso expreso.</p></article><article><h2>Criterio lingüístico</h2><p>Cada clase debe contrastarse con recursos oficiales de LESSA y validarse con una persona competente. Las variantes se documentarán; no se asumirá equivalencia con ASL.</p></article><article><h2>Alcance inicial</h2><p>El piloto reconoce por reglas A, B, D, F, G, H, I, L, U, V, W, Y y 0-4. Las demás clases requieren muestras propias; las señas dinámicas usarán ventanas temporales.</p></article><article><h2>Métricas ARC115</h2><p>Macro-F1 por signante, matriz de confusión, FPS, latencia p50/p95, backend, tamaño del modelo, memoria y compatibilidad por dispositivo.</p></article></div>`;
 }
 
