@@ -47,3 +47,7 @@ La investigación de fuentes y las reglas de uso de datos se documentan en `docs
 La rama `main` se compila y publica automáticamente con GitHub Actions en:
 
 https://pendragon503.github.io/SenaSV-Web/
+
+## Backend colectivo
+
+`server/server.mjs` expone una API con SQLite para recibir lotes anónimos de landmarks y consultar métricas agregadas. Consulta `server/README.md` para ejecución y despliegue. El frontend usa `VITE_API_URL`; si no está definida, conserva las contribuciones pendientes únicamente en el dispositivo.

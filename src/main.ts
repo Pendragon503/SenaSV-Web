@@ -7,6 +7,7 @@ import { pilotClasses, signCatalog, sources } from './catalog';
 import { PilotRecognizer } from './pilot-recognizer';
 import { PersonalClassifier } from './personal-classifier';
 import { AlphabetRecognizer, DEFAULT_ALPHABET_LABELS } from './alphabet-recognizer';
+import { clearContributionQueue, flushContributions, queueContribution } from './contribution-client';
 import { getReference } from './reference-catalog';
 import type { Prediction, RuntimeMetrics, ViewName } from './types';
 
@@ -64,7 +65,7 @@ function shell(content: string): string {
 function consentBanner(): string {
   return `<section class="consent-banner" role="dialog" aria-labelledby="consent-title" aria-describedby="consent-description">
     <div><p class="eyebrow">Privacidad y colaboración</p><h2 id="consent-title">Autorización para datos de entrenamiento</h2>
-    <p id="consent-description">Al aceptar y usar la función Entrenar, autorizas guardar en este dispositivo una matriz formada por la etiqueta seleccionada y las coordenadas normalizadas de 21 puntos de la mano. No guardamos fotografías, video, audio, rostro, nombre ni ubicación, y actualmente no enviamos información a ningún servidor.</p>
+    <p id="consent-description">Al aceptar y usar la función Entrenar, autorizas guardar localmente y aportar a la matriz colectiva la etiqueta seleccionada, 126 coordenadas normalizadas de landmarks, fecha técnica y versión de la aplicación. No capturamos fotografías, video, audio, rostro, nombre ni ubicación. El envío solo ocurre cuando el backend seguro está configurado.</p>
     <small>La cookie solo recuerda tu elección durante 12 meses. Puedes rechazarla y seguir usando el reconocimiento base.</small></div>
     <div class="consent-actions"><button class="button primary" data-consent-choice="accepted">Aceptar y colaborar</button><button class="button" data-consent-choice="declined">Rechazar</button></div>
   </section>`;
@@ -123,7 +124,7 @@ function trainingView(): string {
   const initialReference = getReference(trainingLabels[0]);
   const consent = readTrainingConsent();
   const consentMessage = consent === 'accepted'
-    ? 'Autorización activa: las muestras de landmarks se guardarán en la matriz local de este dispositivo.'
+    ? 'Autorización activa: las muestras se guardarán localmente y se enviarán a la matriz colectiva cuando el servidor esté disponible.'
     : consent === 'declined'
       ? 'No autorizaste guardar muestras. Puedes cambiar esta decisión para colaborar con el entrenamiento.'
       : 'Antes de capturar debes aceptar la autorización de datos de entrenamiento.';
@@ -134,7 +135,7 @@ function trainingView(): string {
       <div class="camera-controls"><button class="button primary" id="camera-toggle">Iniciar cámara</button><span class="status" id="runtime-status" data-state="idle"><span class="status-dot"></span><span id="status-text">Listo para iniciar</span></span></div>
     </section>
     <aside class="panel training-panel">
-      <div class="training-consent" data-state="${consent}"><strong>Datos que se guardarán</strong><p>${consentMessage}</p><ul><li>Etiqueta de la letra o número.</li><li>Coordenadas X, Y y Z normalizadas de 21 puntos de la mano.</li><li>Hasta 40 muestras por etiqueta.</li></ul><p><strong>No se guardan:</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y borrar mi matriz</button>'}</div>
+      <div class="training-consent" data-state="${consent}"><strong>Datos que se guardarán</strong><p>${consentMessage}</p><ul><li>Etiqueta de la letra o número.</li><li>126 valores X, Y y Z normalizados de 21 puntos por espacio de mano.</li><li>Fecha técnica y versiones del consentimiento y de la aplicación.</li><li>Identificador aleatorio convertido en hash por el servidor.</li><li>Hasta 40 muestras locales por etiqueta.</li></ul><p><strong>No se guardan:</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y borrar datos pendientes de este dispositivo</button>'}</div>
       <p class="step-label">Paso 1</p><h2>Selecciona la clase</h2>
       <label for="training-label">Letra o número</label><select id="training-label">${trainingLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</select>
       <figure class="training-reference" id="training-reference"><img id="training-reference-image" src="${initialReference.image}" alt="Página de referencia para ${initialReference.label}"><figcaption><strong id="training-reference-title">Referencia para ${initialReference.label}</strong><span id="training-reference-note">${initialReference.note}</span><small id="training-reference-source">${initialReference.source} · página ${initialReference.page}</small></figcaption></figure>
@@ -183,6 +184,7 @@ function bindConsentControls(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-revoke-consent]').forEach((button) => {
     button.addEventListener('click', () => {
       personalClassifier.clearAll();
+      clearContributionQueue();
       writeTrainingConsent('declined');
       if (stream) stopCamera();
       render(currentView);
@@ -412,6 +414,7 @@ function beginCapture(): void {
 function captureTrainingSample(features: number[], timestamp: number): void {
   if (captureRemaining <= 0 || timestamp - lastCaptureAt < 120) return;
   const count = personalClassifier.add(captureLabel, features);
+  queueContribution(captureLabel, features);
   captureRemaining -= 1;
   lastCaptureAt = timestamp;
   const status = required<HTMLElement>('training-status');
@@ -423,6 +426,18 @@ function captureTrainingSample(features: number[], timestamp: number): void {
     required<HTMLButtonElement>('capture-button').disabled = false;
     setStatus(`Clase ${captureLabel} guardada localmente`, 'ready');
     refreshTrainingStats();
+    void syncCollectiveMatrix(status, captureLabel, count);
+  }
+}
+
+async function syncCollectiveMatrix(status: HTMLElement, label: string, localCount: number): Promise<void> {
+  try {
+    const result = await flushContributions();
+    status.textContent = result.configured
+      ? `${label} lista con ${localCount} muestras locales. ${result.sent} aportadas a la matriz colectiva; ${result.pending} pendientes.`
+      : `${label} lista con ${localCount} muestras locales. ${result.pending} pendientes hasta configurar el backend colectivo.`;
+  } catch (error) {
+    status.textContent = `${label} quedó guardada localmente. Envío colectivo pendiente: ${readableError(error)}`;
   }
 }
 

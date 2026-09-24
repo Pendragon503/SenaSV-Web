@@ -47,3 +47,9 @@ Las reglas son provisionales y se estabilizan durante varios fotogramas. Antes d
 ## Estado del entrenamiento
 
 No existe todavía un dataset propio autorizado, por lo que no corresponde afirmar que el sistema reconoce todo LESSA. Las reglas actuales comprueban el flujo técnico para configuraciones estáticas. El entrenamiento real comienza después de validar y capturar muestras propias de cada clase.
+
+## Contribución colectiva
+
+El participante debe aceptar una autorización explícita antes de capturar. Cada aporte contiene la etiqueta, 126 valores normalizados de landmarks, fecha técnica, versión de la aplicación y versión del consentimiento. El cliente genera un identificador aleatorio y el servidor lo transforma mediante HMAC antes de almacenarlo.
+
+No se envían fotografías, video, audio, rostro, nombre ni ubicación. Si el backend no está configurado o no responde, las muestras permanecen pendientes en el dispositivo y el usuario recibe ese estado de forma explícita.
