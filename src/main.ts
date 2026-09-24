@@ -113,7 +113,7 @@ function recognitionView(): string {
       <div class="recognition-mode"><label for="recognition-mode">Qué deseas reconocer</label><select id="recognition-mode"><option value="alphabet">Abecedario</option><option value="numbers">Números</option></select><p id="ready-labels">Abecedario listo: ${availableAlphabet.join(', ')}</p></div>
       <div class="prediction"><small>Resultado</small><strong id="prediction-label">Sin predicción</strong><div class="confidence-track"><div class="confidence-fill" id="confidence-fill"></div></div><p id="confidence-text">Confianza: —</p></div>
       <p class="notice" id="model-notice">Cargando detector y clasificador…</p>
-      <button class="button" id="speak-button" disabled>Escuchar resultado</button>
+      <button class="button" id="speak-button">Escuchar resultado</button>
       <div class="metrics"><div class="metric"><span>FPS</span><strong id="metric-fps">—</strong></div><div class="metric"><span>Detección</span><strong id="metric-detection">—</strong></div><div class="metric"><span>Backend TF</span><strong id="metric-backend">—</strong></div><div class="metric"><span>Manos</span><strong id="metric-hands">0</strong></div></div>
     </aside>
   </div>`;
@@ -328,7 +328,6 @@ function updateRecognition(prediction: Prediction | null, metrics: RuntimeMetric
   const label = required<HTMLElement>('prediction-label');
   const confidenceText = required<HTMLElement>('confidence-text');
   const confidenceFill = required<HTMLElement>('confidence-fill');
-  const speakButton = required<HTMLButtonElement>('speak-button');
 
   if (!prediction) {
     const allowed = new Set(recognitionMode === 'alphabet' ? alphabetLabels : numberLabels);
@@ -338,18 +337,15 @@ function updateRecognition(prediction: Prediction | null, metrics: RuntimeMetric
       : hasReadyClasses ? 'Seña no reconocida' : 'Primero entrena una clase';
     confidenceText.textContent = 'Confianza: —';
     confidenceFill.style.width = '0%';
-    speakButton.disabled = true;
   } else if (prediction.kind === 'integration-demo') {
     label.textContent = prediction.label;
     confidenceText.textContent = `Salida técnica: ${(prediction.confidence * 100).toFixed(1)} %`;
     confidenceFill.style.width = `${prediction.confidence * 100}%`;
-    speakButton.disabled = true;
   } else {
     label.textContent = prediction.accepted ? prediction.label : 'Seña no reconocida';
     if (prediction.kind === 'rule-based-pilot' && !prediction.accepted) label.textContent = prediction.label;
     confidenceText.textContent = `${prediction.kind === 'rule-based-pilot' ? 'Estabilidad' : 'Confianza'}: ${(prediction.confidence * 100).toFixed(1)} % · inferencia ${prediction.inferenceMs.toFixed(1)} ms`;
     confidenceFill.style.width = `${prediction.confidence * 100}%`;
-    speakButton.disabled = !prediction.accepted;
     if (prediction.accepted) speakAutomatically(prediction.label);
   }
 
@@ -361,7 +357,7 @@ function updateRecognition(prediction: Prediction | null, metrics: RuntimeMetric
 
 function speakResult(): void {
   const text = required<HTMLElement>('prediction-label').textContent?.trim();
-  if (!text || text === 'Sin predicción' || !('speechSynthesis' in window)) return;
+  if (!text || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'es-SV';
