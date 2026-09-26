@@ -1,11 +1,13 @@
 import { createServer } from 'node:http';
 import { createHmac, randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
+import { openDatabase } from './db.mjs';
+import { applyCors, createRateLimiter } from './security.mjs';
+import { handleLogin, handleLogout, handleMe, handleRegister } from './routes/auth.mjs';
+import { handleGetLearningPath, handlePostProgress, handleProgressSummary } from './routes/learning-path.mjs';
 
 const port = Number(process.env.PORT || 8787);
-const databasePath = resolve(process.env.DATABASE_PATH || 'data/senasv.sqlite');
+const databasePath = process.env.DATABASE_PATH || 'data/senasv.sqlite';
 const participantSalt = process.env.PARTICIPANT_SALT || randomUUID();
 const allowedOrigins = new Set(
   (process.env.ALLOWED_ORIGINS || 'http://localhost:4173,http://localhost:4175,https://pendragon503.github.io')
@@ -13,37 +15,52 @@ const allowedOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
-const rateBuckets = new Map();
 
-mkdirSync(dirname(databasePath), { recursive: true });
-const database = new DatabaseSync(databasePath);
-database.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
-  CREATE TABLE IF NOT EXISTS contributions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    participant_hash TEXT NOT NULL,
-    label TEXT NOT NULL,
-    features_json TEXT NOT NULL,
-    feature_count INTEGER NOT NULL CHECK(feature_count = 126),
-    captured_at TEXT NOT NULL,
-    received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    consent_version TEXT NOT NULL,
-    app_version TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_contributions_label ON contributions(label);
-  CREATE INDEX IF NOT EXISTS idx_contributions_participant ON contributions(participant_hash);
-`);
+// Cookies that carry the session must be sent as SameSite=None; Secure once the
+// frontend and API live on different origins (the default production setup, e.g.
+// GitHub Pages -> api.example.com). Set INSECURE_COOKIES=1 only for plain-http
+// local development, where SameSite=None would be rejected by the browser.
+const secureCookies = process.env.INSECURE_COOKIES !== '1';
 
-const insertContribution = database.prepare(`
-  INSERT INTO contributions
-    (participant_hash, label, features_json, feature_count, captured_at, consent_version, app_version)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-`);
+const config = {
+  sessionCookieName: 'senasv_session',
+  metricsConsentCookieName: 'senasv_metrics_consent',
+  sessionTtlDays: Number(process.env.SESSION_TTL_DAYS || 30),
+  secureCookies,
+};
+
+if (!process.env.PARTICIPANT_SALT) {
+  console.warn('PARTICIPANT_SALT no está configurado; define un secreto estable antes de producción.');
+}
+
+const { database, statements } = openDatabase(databasePath);
+
+// Housekeeping: purge expired sessions periodically instead of on every request.
+setInterval(() => {
+  try {
+    statements.deleteExpiredSessions.run(new Date().toISOString());
+  } catch (error) {
+    console.warn('No se pudieron limpiar las sesiones expiradas.', error);
+  }
+}, 60 * 60 * 1000).unref();
+
+const consumeContributionRateToken = createRateLimiter(30, 60_000);
+const consumeAuthRateToken = createRateLimiter(10, 60_000);
+const consumeMetricsRateToken = createRateLimiter(60, 60_000);
+
+const ctx = {
+  database,
+  statements,
+  config,
+  sendJson,
+  readJson,
+  consumeAuthRateToken,
+  consumeMetricsRateToken,
+};
 
 const server = createServer(async (request, response) => {
   const origin = request.headers.origin || '';
-  applyCors(response, origin);
+  applyCors(response, origin, allowedOrigins);
 
   if (request.method === 'OPTIONS') {
     response.writeHead(204);
@@ -57,6 +74,7 @@ const server = createServer(async (request, response) => {
   }
 
   const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+
   if (request.method === 'GET' && url.pathname === '/api/v1/health') {
     sendJson(response, 200, { status: 'ok', service: 'senasv-learning-api' });
     return;
@@ -77,11 +95,10 @@ const server = createServer(async (request, response) => {
   }
 
   if (request.method === 'POST' && url.pathname === '/api/v1/contributions/batch') {
-    if (!consumeRateToken(request.socket.remoteAddress || 'unknown')) {
+    if (!consumeContributionRateToken(request.socket.remoteAddress || 'unknown')) {
       sendJson(response, 429, { error: 'Demasiadas solicitudes. Intenta nuevamente en un minuto.' });
       return;
     }
-
     try {
       const body = await readJson(request, 600_000);
       const validated = validateBatch(body);
@@ -91,7 +108,7 @@ const server = createServer(async (request, response) => {
       database.exec('BEGIN');
       try {
         for (const sample of validated.samples) {
-          insertContribution.run(
+          statements.insertContribution.run(
             participantHash,
             sample.label,
             JSON.stringify(sample.features),
@@ -113,12 +130,46 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  // --- Autenticación -------------------------------------------------------
+  if (request.method === 'POST' && url.pathname === '/api/v1/auth/register') {
+    await handleRegister(request, response, ctx);
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/v1/auth/login') {
+    await handleLogin(request, response, ctx);
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/v1/auth/logout') {
+    handleLogout(request, response, ctx);
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/v1/auth/me') {
+    handleMe(request, response, ctx);
+    return;
+  }
+
+  // --- Ruta de aprendizaje global y métricas de progreso -------------------
+  if (request.method === 'GET' && url.pathname === '/api/v1/learning-path') {
+    handleGetLearningPath(request, response, ctx);
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/api/v1/learning-path/progress') {
+    await handlePostProgress(request, response, ctx);
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/v1/learning-path/progress/summary') {
+    handleProgressSummary(request, response, ctx);
+    return;
+  }
+
   sendJson(response, 404, { error: 'Ruta no encontrada.' });
 });
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`SeñaSV learning API listening on http://0.0.0.0:${port}`);
-  if (!process.env.PARTICIPANT_SALT) console.warn('PARTICIPANT_SALT no está configurado; define un secreto estable antes de producción.');
+  if (!secureCookies) {
+    console.warn('INSECURE_COOKIES=1: cookies de sesión sin flag Secure. Solo para desarrollo local por HTTP.');
+  }
 });
 
 function validateBatch(body) {
@@ -164,25 +215,6 @@ function readJson(request, maxBytes) {
     });
     request.on('error', rejectBody);
   });
-}
-
-function consumeRateToken(address) {
-  const now = Date.now();
-  const bucket = rateBuckets.get(address);
-  if (!bucket || now - bucket.startedAt > 60_000) {
-    rateBuckets.set(address, { startedAt: now, count: 1 });
-    return true;
-  }
-  bucket.count += 1;
-  return bucket.count <= 30;
-}
-
-function applyCors(response, origin) {
-  if (allowedOrigins.has(origin)) response.setHeader('Access-Control-Allow-Origin', origin);
-  response.setHeader('Vary', 'Origin');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  response.setHeader('X-Content-Type-Options', 'nosniff');
 }
 
 function sendJson(response, status, body) {
