@@ -66,9 +66,9 @@ function shell(content: string): string {
 
 function consentBanner(): string {
   return `<section class="consent-banner" role="dialog" aria-labelledby="consent-title" aria-describedby="consent-description">
-    <div><p class="eyebrow">Privacidad y colaboración</p><h2 id="consent-title">Autorización para datos de entrenamiento</h2>
-    <p id="consent-description">Al aceptar y usar la función Entrenar, autorizas guardar localmente y aportar a la matriz colectiva la etiqueta seleccionada, 126 coordenadas normalizadas de landmarks, fecha técnica y versión de la aplicación. No capturamos fotografías, video, audio, rostro, nombre ni ubicación. El envío solo ocurre cuando el backend seguro está configurado.</p>
-    <small>La cookie solo recuerda tu elección durante 12 meses. Puedes rechazarla y seguir usando el reconocimiento base.</small></div>
+    <div class="consent-icon" aria-hidden="true">✓</div><div class="consent-copy"><h2 id="consent-title">Privacidad y colaboración</h2>
+    <p id="consent-description">Para entrenar, guardamos coordenadas anónimas de la mano. Nunca fotografías, video, audio, rostro, nombre ni ubicación.</p>
+    <details><summary>Consultar datos y condiciones</summary><p>Al aceptar, autorizas guardar localmente y aportar a la matriz colectiva la etiqueta seleccionada, 126 coordenadas normalizadas de landmarks, fecha técnica y versión de la aplicación. El envío solo ocurre cuando el backend seguro está configurado. La cookie recuerda tu elección durante 12 meses.</p></details></div>
     <div class="consent-actions"><button class="button primary" data-consent-choice="accepted">Aceptar y colaborar</button><button class="button" data-consent-choice="declined">Rechazar</button></div>
   </section>`;
 }
@@ -96,17 +96,22 @@ function render(view: ViewName): void {
 
 function homeView(): string {
   return `<section class="hero">
-    <div class="hero-copy"><p class="eyebrow">Tecnología inclusiva · Investigación aplicada</p><h1>Plataforma de reconocimiento de LESSA</h1>
-    <p class="lead">Entorno académico para la captura responsable, el análisis geométrico y el reconocimiento asistido de configuraciones manuales de la Lengua de Señas Salvadoreña.</p>
+    <div class="hero-copy"><div class="hero-badge"><span></span>Prototipo académico ARC115</div><p class="eyebrow">Tecnología inclusiva · Investigación aplicada</p><h1>Reconocimiento responsable de LESSA</h1>
+    <p class="lead">Plataforma para reconocer, documentar y entrenar configuraciones de la Lengua de Señas Salvadoreña mediante procesamiento local y colaboración consentida.</p>
     <div class="actions"><button class="button primary" data-view="reconocimiento">Iniciar reconocimiento</button><button class="button" data-view="entrenamiento">Contribuir al entrenamiento</button></div>
     <div class="trust-row"><span>Procesamiento local</span><span>Consentimiento informado</span><span>Fuentes institucionales</span></div></div>
-    <div class="hero-card" aria-hidden="true"><div class="hero-card-head"><span>SEÑASV · ARC115</span><span class="operational-dot">Operativo</span></div><div class="hero-mark"><small>LESSA</small><strong>SV</strong></div><div class="hero-stats"><div><strong>${pilotClasses.length}</strong><span>clases piloto</span></div><div><strong>21</strong><span>puntos por mano</span></div><div><strong>100%</strong><span>procesamiento privado</span></div></div></div>
+    <div class="hero-card" aria-hidden="true"><div class="hero-card-head"><span>SEÑASV · PLATAFORMA 0.1</span><span class="operational-dot">Operativo</span></div><div class="hero-mark"><small>LENGUA DE SEÑAS SALVADOREÑA</small><strong>SV</strong></div><div class="hero-stats"><div><strong>${pilotClasses.length}</strong><span>clases piloto</span></div><div><strong>50</strong><span>palabras objetivo</span></div><div><strong>21</strong><span>puntos por mano</span></div></div></div>
+  </section>
+  <section class="home-modules" aria-labelledby="modules-title"><div class="module-heading"><p class="eyebrow">Módulos de trabajo</p><h2 id="modules-title">Una ruta clara para participar</h2></div>
+    <article><span>01</span><div><h3>Reconocer</h3><p>Activa la cámara y consulta letras, números o palabras previamente entrenadas.</p></div><button data-view="reconocimiento" aria-label="Abrir reconocimiento">→</button></article>
+    <article><span>02</span><div><h3>Entrenar</h3><p>Captura muestras normalizadas y contribuye al aprendizaje colectivo.</p></div><button data-view="entrenamiento" aria-label="Abrir entrenamiento">→</button></article>
+    <article><span>03</span><div><h3>Explorar</h3><p>Revisa el catálogo, las fuentes y el estado de validación de cada clase.</p></div><button data-view="diccionario" aria-label="Abrir catálogo">→</button></article>
   </section>
   <section class="scope-overview" aria-labelledby="scope-title">
     <div class="scope-heading"><p class="eyebrow">Alcance de identificación</p><h2 id="scope-title">Clases contempladas por el proyecto</h2><p>El catálogo completo está disponible para captura y entrenamiento. Las etiquetas destacadas corresponden al reconocimiento geométrico base disponible actualmente.</p></div>
     <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 01</small><h3>Alfabeto LESSA</h3></div><strong>${alphabetLabels.length} etiquetas</strong></div><div class="label-grid">${alphabetLabels.map((label) => `<span class="${DEFAULT_ALPHABET_LABELS.includes(label) ? 'available' : ''}">${label}</span>`).join('')}</div><p><i></i> Reconocimiento base: ${DEFAULT_ALPHABET_LABELS.join(', ')}. Las demás etiquetas requieren muestras personales validadas.</p></article>
     <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 02</small><h3>Numeración</h3></div><strong>0–100</strong></div><div class="number-range-grid">${numberScopeGroups.map((range, index) => `<span class="${index === 0 ? 'available' : ''}">${range}</span>`).join('')}</div><p><i></i> Reconocimiento base: 0–4. El entrenamiento admite valores individuales desde 0 hasta 100.</p></article>
-    <article class="scope-card word-scope"><div class="scope-card-title"><div><small>Conjunto 03</small><h3>Vocabulario funcional</h3></div><strong>50 palabras objetivo</strong></div><div class="word-grid">${wordLabels.map((label) => `<span>${label}</span>`).join('')}</div><p><i></i> Las palabras están disponibles para captura y aprendizaje personal/colectivo. Su reconocimiento requiere muestras reales y validación por una persona competente en LESSA.</p></article>
+    <article class="scope-card word-scope"><div class="scope-card-title"><div><small>Conjunto 03</small><h3>Vocabulario funcional</h3></div><strong>50 palabras objetivo</strong></div><div class="word-categories"><span>Saludos · 10</span><span>Preguntas · 8</span><span>Necesidades · 12</span><span>Personas · 8</span><span>Educación · 8</span><span>Emergencias · 4</span></div><details class="word-details"><summary>Consultar las 50 palabras</summary><div class="word-grid">${wordLabels.map((label) => `<span>${label}</span>`).join('')}</div></details><p><i></i> Disponibles para captura y aprendizaje personal/colectivo; requieren muestras reales y validación competente en LESSA.</p></article>
   </section>`;
 }
 
