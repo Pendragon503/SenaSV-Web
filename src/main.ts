@@ -8,7 +8,7 @@ import { PilotRecognizer } from './pilot-recognizer';
 import { PersonalClassifier } from './personal-classifier';
 import { AlphabetRecognizer, DEFAULT_ALPHABET_LABELS } from './alphabet-recognizer';
 import { clearContributionQueue, flushContributions, queueContribution, revokeCollectiveContributions } from './contribution-client';
-import { getReference } from './reference-catalog';
+import { getReference, phraseLabels } from './reference-catalog';
 import type { Prediction, RuntimeMetrics, ViewName } from './types';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -46,7 +46,7 @@ const CONSENT_COOKIE = 'senasv_training_consent';
 
 const alphabetLabels = ['A', 'B', 'C', 'CH', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'LL', 'M', 'N', 'Ñ', 'O', 'P', 'Q', 'R', 'RR', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 const numberLabels = Array.from({ length: 101 }, (_, index) => String(index));
-const trainingLabels = [...alphabetLabels, ...numberLabels, ...wordLabels];
+const trainingLabels = [...alphabetLabels, ...numberLabels, ...wordLabels, ...phraseLabels];
 const numberScopeGroups = ['0–9', '10–19', '20–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80–89', '90–99', '100'];
 
 function shell(content: string): string {
@@ -144,13 +144,13 @@ function trainingView(): string {
       <div class="camera-controls"><button class="button primary" id="camera-toggle">Iniciar cámara</button><span class="status" id="runtime-status" data-state="idle"><span class="status-dot"></span><span id="status-text">Listo para iniciar</span></span></div><p class="camera-guidance">Coloca una sola mano completa dentro del encuadre. Cambia ligeramente la distancia y el ángulo entre rondas.</p>
     </section>
     <aside class="panel training-panel">
-      <section class="training-step"><p class="step-label">Etapa 01 · Seleccionar</p><h2>Clase de entrenamiento</h2><label for="training-label">Letra, número o palabra</label><select id="training-label"><optgroup label="Abecedario">${alphabetLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="Números 0–100">${numberLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="50 palabras objetivo">${wordLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup></select>
+      <section class="training-step"><p class="step-label">Etapa 01 · Seleccionar</p><h2>Clase de entrenamiento</h2><label for="training-label">Letra, número, palabra o frase</label><select id="training-label"><optgroup label="Abecedario">${alphabetLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="Números 0–100">${numberLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="50 palabras objetivo">${wordLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="Frases visuales de LESSA Virtual">${phraseLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup></select>
       <details class="reference-details" open><summary>Referencia visual de la seña</summary><figure class="training-reference" id="training-reference"><button class="reference-zoom" id="reference-zoom" type="button" aria-label="Ampliar imagen de referencia">⌕ <span>Ampliar</span></button><img id="training-reference-image" src="${initialReference.image}" alt="Página de referencia para ${initialReference.label}"><div class="word-reference-placeholder" id="word-reference-placeholder" hidden><small>Ficha visual de validación</small><strong id="word-reference-label">${initialReference.label}</strong><div><span>Configuración</span><span>Orientación</span><span>Ubicación</span><span>Movimiento</span></div><p>Imagen LESSA validada pendiente</p></div><figcaption><strong id="training-reference-title">Referencia para ${initialReference.label}</strong><span id="training-reference-note">${initialReference.note}</span><small id="training-reference-source">${initialReference.source} · página ${initialReference.page}</small></figcaption></figure></details></section>
       <section class="training-step capture-step"><p class="step-label">Etapas 02–03 · Preparar y capturar</p><h2>Registro de muestras</h2><p class="capture-reminder">Mano completa, vertical y centrada. Mantén la seña estable durante la captura.</p><div class="training-progress"><div id="training-progress-fill"></div></div><p class="training-status" id="training-status">${personalClassifier.trainedLabels()} clases listas · ${personalClassifier.totalSamples()} muestras locales</p><div class="training-actions"><button class="button primary" id="capture-button" disabled>Capturar 12 muestras</button><button class="button" id="clear-class-button">Borrar esta clase</button></div></section>
       <div class="training-stats"><div><strong id="trained-class-count">${personalClassifier.trainedLabels()}</strong><span>clases listas</span></div><div><strong id="sample-count">${personalClassifier.totalSamples()}</strong><span>muestras</span></div><div><strong id="training-hands">0</strong><span>manos visibles</span></div></div>
       <button class="button full" data-view="reconocimiento">Aplicar lo aprendido</button>
     </aside>
-  </div><dialog class="reference-dialog" id="reference-dialog" aria-labelledby="reference-dialog-title"><div class="reference-dialog-head"><div><small>Referencia de aprendizaje</small><strong id="reference-dialog-title">Referencia para ${initialReference.label}</strong></div><button id="reference-dialog-close" type="button" aria-label="Cerrar imagen ampliada">×</button></div><div class="reference-dialog-canvas"><img id="reference-dialog-image" src="${initialReference.image}" alt="Referencia ampliada para ${initialReference.label}"><div class="word-reference-placeholder dialog-placeholder" id="dialog-word-placeholder" hidden><small>Ficha visual de validación</small><strong id="dialog-word-label">${initialReference.label}</strong><div><span>Configuración</span><span>Orientación</span><span>Ubicación</span><span>Movimiento</span></div><p>Imagen LESSA validada pendiente</p></div></div><p id="reference-dialog-note">${initialReference.note}</p></dialog>`;
+  </div><dialog class="reference-dialog" id="reference-dialog" aria-labelledby="reference-dialog-title"><div class="reference-dialog-head"><div><small>Referencia de aprendizaje</small><strong id="reference-dialog-title">Referencia para ${initialReference.label}</strong></div><button id="reference-dialog-close" type="button" aria-label="Cerrar referencia ampliada">×</button></div><div class="reference-dialog-canvas"><img id="reference-dialog-image" src="${initialReference.image}" alt="Referencia ampliada para ${initialReference.label}"><iframe id="reference-dialog-video" hidden title="Demostración audiovisual de LESSA" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe><div class="word-reference-placeholder dialog-placeholder" id="dialog-word-placeholder" hidden><small>Ficha visual de validación</small><strong id="dialog-word-label">${initialReference.label}</strong><div><span>Configuración</span><span>Orientación</span><span>Ubicación</span><span>Movimiento</span></div><p>Imagen LESSA validada pendiente</p></div></div><p id="reference-dialog-note">${initialReference.note}</p></dialog>`;
 }
 
 function dictionaryView(): string {
@@ -208,7 +208,7 @@ async function bindRecognition(): Promise<void> {
   const button = required<HTMLButtonElement>('camera-toggle');
   const readyAlphabet = personalClassifier.readyLabels(new Set(alphabetLabels));
   const readyNumbers = personalClassifier.readyLabels(new Set(numberLabels));
-  const readyWords = personalClassifier.readyLabels(new Set(wordLabels));
+  const readyWords = personalClassifier.readyLabels(new Set([...wordLabels, ...phraseLabels]));
   required<HTMLButtonElement>('speak-button').addEventListener('click', speakResult);
   required<HTMLSelectElement>('recognition-mode').addEventListener('change', changeRecognitionMode);
   button.addEventListener('click', () => stream ? stopCamera() : void startCamera());
@@ -233,10 +233,19 @@ async function bindTraining(): Promise<void> {
   required<HTMLButtonElement>('clear-class-button').addEventListener('click', clearSelectedClass);
   required<HTMLSelectElement>('training-label').addEventListener('change', updateTrainingReference);
   const referenceDialog = required<HTMLDialogElement>('reference-dialog');
-  required<HTMLButtonElement>('reference-zoom').addEventListener('click', () => referenceDialog.showModal());
-  required<HTMLButtonElement>('reference-dialog-close').addEventListener('click', () => referenceDialog.close());
+  required<HTMLButtonElement>('reference-zoom').addEventListener('click', () => {
+    const reference = getReference(required<HTMLSelectElement>('training-label').value);
+    const video = required<HTMLIFrameElement>('reference-dialog-video');
+    if (reference.videoUrl) video.src = reference.videoUrl;
+    referenceDialog.showModal();
+  });
+  const closeReference = () => {
+    required<HTMLIFrameElement>('reference-dialog-video').src = '';
+    referenceDialog.close();
+  };
+  required<HTMLButtonElement>('reference-dialog-close').addEventListener('click', closeReference);
   referenceDialog.addEventListener('click', (event) => {
-    if (event.target === referenceDialog) referenceDialog.close();
+    if (event.target === referenceDialog) closeReference();
   });
   button.addEventListener('click', () => stream ? stopCamera() : void startCamera());
   setStatus('Cargando detector de manos…', 'idle');
@@ -255,12 +264,18 @@ function updateTrainingReference(): void {
   const reference = getReference(label);
   const image = required<HTMLImageElement>('training-reference-image');
   const dialogImage = required<HTMLImageElement>('reference-dialog-image');
+  const dialogVideo = required<HTMLIFrameElement>('reference-dialog-video');
   const wordPlaceholder = required<HTMLElement>('word-reference-placeholder');
   const dialogPlaceholder = required<HTMLElement>('dialog-word-placeholder');
   image.hidden = !reference.image;
-  dialogImage.hidden = !reference.image;
+  dialogImage.hidden = !reference.image || Boolean(reference.videoUrl);
+  dialogVideo.hidden = !reference.videoUrl;
+  dialogVideo.src = '';
   wordPlaceholder.hidden = Boolean(reference.image);
-  dialogPlaceholder.hidden = Boolean(reference.image);
+  dialogPlaceholder.hidden = Boolean(reference.image) || Boolean(reference.videoUrl);
+  const zoomButton = required<HTMLButtonElement>('reference-zoom');
+  zoomButton.querySelector('span')!.textContent = reference.videoUrl ? 'Ver video' : 'Ampliar';
+  zoomButton.setAttribute('aria-label', reference.videoUrl ? `Ver demostración en video de ${label}` : `Ampliar imagen de referencia para ${label}`);
   required<HTMLElement>('word-reference-label').textContent = label;
   required<HTMLElement>('dialog-word-label').textContent = label;
   if (reference.image) {
@@ -430,7 +445,7 @@ function changeRecognitionMode(): void {
 function labelsForRecognitionMode(): string[] {
   if (recognitionMode === 'alphabet') return alphabetLabels;
   if (recognitionMode === 'numbers') return numberLabels;
-  return wordLabels;
+  return [...wordLabels, ...phraseLabels];
 }
 
 function beginCapture(): void {

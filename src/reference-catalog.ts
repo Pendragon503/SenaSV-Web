@@ -4,6 +4,7 @@ export interface SignReference {
   image: string | null;
   source: string;
   note: string;
+  videoUrl?: string;
 }
 
 const baseUrl = import.meta.env.BASE_URL;
@@ -39,7 +40,33 @@ const socialWords = new Set([
 const needsWords = new Set(['ayuda', 'agua', 'comer', 'beber', 'baño', 'dolor', 'médico', 'esperar', 'ir', 'venir', 'querer', 'necesitar']);
 const educationWords = new Set(['universidad', 'estudiante', 'docente', 'clase', 'libro', 'aprender', 'estudiar', 'computadora', 'emergencia', 'peligro', 'policía', 'hospital']);
 
+const phraseVideoId = 'odA6IvSVx5s';
+const phraseTimes: Record<string, number> = {
+  'Yo sé un poco de Lengua de Señas Salvadoreña': 5,
+  'Oyente': 87,
+  'No': 112,
+  'Mucho gusto': 138,
+  'Estás signando rápido': 163,
+  'Yo entiendo': 188,
+  '¿Cómo signar “árbol” deletreando?': 214,
+  'Yo aprendí un poco de LESSA': 239,
+};
+
+export const phraseLabels = Object.keys(phraseTimes);
+
 export function getReference(label: string): SignReference {
+  const phraseTime = phraseTimes[label];
+  if (phraseTime !== undefined) {
+    return {
+      label,
+      page: null,
+      image: `https://i.ytimg.com/vi/${phraseVideoId}/hqdefault.jpg`,
+      videoUrl: `https://www.youtube-nocookie.com/embed/${phraseVideoId}?start=${phraseTime}&autoplay=1&rel=0`,
+      source: `LESSA Virtual · “25 señas y frases de LESSA para principiantes” · ${Math.floor(phraseTime / 60)}:${String(phraseTime % 60).padStart(2, '0')}`,
+      note: `Referencia audiovisual para “${label}”. Observa la secuencia completa, la expresión facial y el movimiento antes de capturar muestras.`,
+    };
+  }
+
   const alphabetPage = alphabetPages[label];
   if (alphabetPage) {
     return {
