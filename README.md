@@ -42,6 +42,8 @@ Consulta `public/model/README.md`. No deben presentarse etiquetas como reconocim
 
 La investigación de fuentes y las reglas de uso de datos se documentan en `docs/FUENTES_Y_DATOS.md`.
 
+El plan de mejoras, las métricas de aceptación, la matriz de pruebas y el cronograma de la segunda entrega se documentan en `docs/SEGUNDA_ENTREGA.md`.
+
 ## Sitio público
 
 La rama `main` se compila y publica automáticamente con GitHub Actions en:
