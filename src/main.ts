@@ -60,7 +60,7 @@ function shell(content: string): string {
     </header>
     <main class="main">${content}</main>
     <footer class="footer"><strong>SeñaSV</strong><span>Proyecto académico ARC115 · Procesamiento responsable de datos · LESSA sujeta a validación especializada</span></footer>
-    ${consent === 'unset' ? consentBanner() : ''}
+    ${consent === 'unset' && currentView !== 'entrenamiento' ? consentBanner() : ''}
   </div>`;
 }
 
