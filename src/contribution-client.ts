@@ -5,6 +5,7 @@ const CONSENT_VERSION = '2026-09-24';
 const APP_VERSION = '0.1.0';
 
 interface QueuedSample {
+  id: string;
   label: string;
   features: number[];
   capturedAt: string;
@@ -18,7 +19,7 @@ export interface SyncResult {
 
 export function queueContribution(label: string, features: number[]): number {
   const queue = readQueue();
-  queue.push({ label, features, capturedAt: new Date().toISOString() });
+  queue.push({ id: crypto.randomUUID(), label, features, capturedAt: new Date().toISOString() });
   const trimmed = queue.slice(-500);
   localStorage.setItem(QUEUE_KEY, JSON.stringify(trimmed));
   return trimmed.length;
@@ -49,10 +50,29 @@ export function clearContributionQueue(): void {
   localStorage.removeItem(PARTICIPANT_KEY);
 }
 
+export async function revokeCollectiveContributions(): Promise<number> {
+  const participantId = localStorage.getItem(PARTICIPANT_KEY);
+  if (!API_URL || !participantId) return 0;
+  const response = await fetch(`${API_URL}/api/v1/contributions/participant`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ participantId, consentVersion: CONSENT_VERSION }),
+  });
+  if (!response.ok) throw new Error(`No fue posible eliminar las contribuciones colectivas (${response.status}).`);
+  const result = await response.json() as { deleted?: number };
+  return Number(result.deleted || 0);
+}
+
 function readQueue(): QueuedSample[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') as unknown;
-    return Array.isArray(parsed) ? parsed as QueuedSample[] : [];
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as Array<Partial<QueuedSample>>).map((sample) => ({
+      id: sample.id || crypto.randomUUID(),
+      label: String(sample.label || ''),
+      features: Array.isArray(sample.features) ? sample.features : [],
+      capturedAt: String(sample.capturedAt || new Date().toISOString()),
+    }));
   } catch {
     return [];
   }

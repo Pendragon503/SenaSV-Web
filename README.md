@@ -53,3 +53,5 @@ https://pendragon503.github.io/SenaSV-Web/
 ## Backend colectivo
 
 `server/server.mjs` expone una API con SQLite para recibir lotes anónimos de landmarks y consultar métricas agregadas. Consulta `server/README.md` para ejecución y despliegue. El frontend usa `VITE_API_URL`; si no está definida, conserva las contribuciones pendientes únicamente en el dispositivo.
+
+Para producción gratuita se incluye `cloudflare/`, un backend compatible con la misma API construido con Cloudflare Workers y D1. Contiene el esquema SQL, migraciones, deduplicación por muestra, anonimización HMAC, métricas colectivas y eliminación por retiro de consentimiento. Consulta `cloudflare/README.md` para crear la base y desplegarla.

@@ -1,0 +1,21 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "senasv-learning-api",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-23",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGINS": "https://pendragon503.github.io,http://localhost:4173,http://localhost:4175"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "senasv-learning",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -7,7 +7,7 @@ import { pilotClasses, signCatalog, sources } from './catalog';
 import { PilotRecognizer } from './pilot-recognizer';
 import { PersonalClassifier } from './personal-classifier';
 import { AlphabetRecognizer, DEFAULT_ALPHABET_LABELS } from './alphabet-recognizer';
-import { clearContributionQueue, flushContributions, queueContribution } from './contribution-client';
+import { clearContributionQueue, flushContributions, queueContribution, revokeCollectiveContributions } from './contribution-client';
 import { getReference } from './reference-catalog';
 import type { Prediction, RuntimeMetrics, ViewName } from './types';
 
@@ -142,7 +142,7 @@ function trainingView(): string {
       <div class="camera-controls"><button class="button primary" id="camera-toggle">Iniciar cámara</button><span class="status" id="runtime-status" data-state="idle"><span class="status-dot"></span><span id="status-text">Listo para iniciar</span></span></div>
     </section>
     <aside class="panel training-panel">
-      <div class="training-consent" data-state="${consent}"><strong>Datos que se guardarán</strong><p>${consentMessage}</p><ul><li>Etiqueta de la letra o número.</li><li>126 valores X, Y y Z normalizados de 21 puntos por espacio de mano.</li><li>Fecha técnica y versiones del consentimiento y de la aplicación.</li><li>Identificador aleatorio convertido en hash por el servidor.</li><li>Hasta 40 muestras locales por etiqueta.</li></ul><p><strong>No se guardan:</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y borrar datos pendientes de este dispositivo</button>'}</div>
+      <div class="training-consent" data-state="${consent}"><strong>Datos que se guardarán</strong><p>${consentMessage}</p><ul><li>Etiqueta de la letra o número.</li><li>126 valores X, Y y Z normalizados de 21 puntos por espacio de mano.</li><li>Fecha técnica y versiones del consentimiento y de la aplicación.</li><li>Identificador aleatorio convertido en hash por el servidor.</li><li>Hasta 40 muestras locales por etiqueta.</li></ul><p><strong>No se guardan:</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y eliminar mis contribuciones</button>'}</div>
       <p class="step-label">Etapa 01</p><h2>Selección de categoría</h2>
       <label for="training-label">Letra o número</label><select id="training-label">${trainingLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</select>
       <figure class="training-reference" id="training-reference"><img id="training-reference-image" src="${initialReference.image}" alt="Página de referencia para ${initialReference.label}"><figcaption><strong id="training-reference-title">Referencia para ${initialReference.label}</strong><span id="training-reference-note">${initialReference.note}</span><small id="training-reference-source">${initialReference.source} · página ${initialReference.page}</small></figcaption></figure>
@@ -189,12 +189,22 @@ function bindConsentControls(): void {
     });
   });
   document.querySelectorAll<HTMLButtonElement>('[data-revoke-consent]').forEach((button) => {
-    button.addEventListener('click', () => {
-      personalClassifier.clearAll();
-      clearContributionQueue();
-      writeTrainingConsent('declined');
-      if (stream) stopCamera();
-      render(currentView);
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'Eliminando contribuciones…';
+      try {
+        await revokeCollectiveContributions();
+        personalClassifier.clearAll();
+        clearContributionQueue();
+        writeTrainingConsent('declined');
+        if (stream) stopCamera();
+        render(currentView);
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = 'Reintentar retiro de autorización';
+        const status = document.querySelector<HTMLElement>('#training-status');
+        if (status) status.textContent = readableError(error);
+      }
     });
   });
 }

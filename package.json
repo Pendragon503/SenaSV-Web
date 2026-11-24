@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "backend": "node server/server.mjs",
+    "cf:dev": "pnpm dlx wrangler@4.47.0 dev --config cloudflare/wrangler.jsonc --local",
+    "cf:deploy": "pnpm dlx wrangler@4.47.0 deploy --config cloudflare/wrangler.jsonc",
+    "cf:migrate:local": "pnpm dlx wrangler@4.47.0 d1 migrations apply senasv-learning --local --config cloudflare/wrangler.jsonc",
+    "cf:migrate:remote": "pnpm dlx wrangler@4.47.0 d1 migrations apply senasv-learning --remote --config cloudflare/wrangler.jsonc",
     "build": "tsc && vite build",
     "preview": "vite preview --host 0.0.0.0"
   },

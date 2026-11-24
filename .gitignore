@@ -6,3 +6,5 @@ certs/
 tmp/
 data/
 .env
+cloudflare/.dev.vars
+.wrangler/
