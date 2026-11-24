@@ -205,9 +205,9 @@ h1 { max-width: 15ch; margin: 0; color: var(--blue-900); font-size: clamp(2.4rem
 .info-grid h2 { margin-top: 0; color: var(--blue-900); }.info-grid p, .info-grid li { color: var(--muted); line-height: 1.65; }
 
 @media (max-width: 760px) {
-  .topbar { align-items: flex-start; }
+  .topbar { align-items: flex-start; gap: .5rem; padding-inline: .75rem; overflow: hidden; }
   .brand span { display: none; }
-  .nav { overflow-x: auto; max-width: calc(100vw - 80px); }
+  .nav { min-width: 0; overflow-x: auto; max-width: calc(100vw - 96px); }
   .nav button { white-space: nowrap; }
   .hero, .recognition-layout, .training-layout, .info-grid, .scope-overview, .scope-heading, .home-modules { grid-template-columns: 1fr; }
   .module-heading { grid-column: auto; display: block; }
