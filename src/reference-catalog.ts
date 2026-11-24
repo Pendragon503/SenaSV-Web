@@ -31,6 +31,14 @@ const numberPages: Record<string, number> = {
   '80': 41, '90': 41, '100': 41,
 };
 
+const socialWords = new Set([
+  'hola', 'buenos días', 'buenas tardes', 'buenas noches', 'adiós', 'gracias', 'por favor', 'perdón', 'bienvenido', 'mucho gusto',
+  'qué', 'quién', 'dónde', 'cuándo', 'cómo', 'por qué', 'cuánto', 'cuál',
+  'mamá', 'papá', 'hermano', 'hermana', 'familia', 'amigo', 'niño', 'persona',
+]);
+const needsWords = new Set(['ayuda', 'agua', 'comer', 'beber', 'baño', 'dolor', 'médico', 'esperar', 'ir', 'venir', 'querer', 'necesitar']);
+const educationWords = new Set(['universidad', 'estudiante', 'docente', 'clase', 'libro', 'aprender', 'estudiar', 'computadora', 'emergencia', 'peligro', 'policía', 'hospital']);
+
 export function getReference(label: string): SignReference {
   const alphabetPage = alphabetPages[label];
   if (alphabetPage) {
@@ -55,12 +63,19 @@ export function getReference(label: string): SignReference {
   }
 
   if (!/^\d+$/.test(label)) {
+    const conceptualImage = socialWords.has(label)
+      ? 'social.webp'
+      : needsWords.has(label)
+        ? 'necesidades.webp'
+        : educationWords.has(label)
+          ? 'educacion-emergencias.webp'
+          : null;
     return {
       label,
       page: null,
-      image: null,
-      source: 'LESSA Virtual y DEES-LESSA',
-      note: 'Palabra objetivo pendiente de validación. Consulta la lección enlazada en el catálogo y confirma configuración, orientación, ubicación y movimiento con una persona competente en LESSA antes de capturar.',
+      image: conceptualImage ? `${baseUrl}references/conceptual/${conceptualImage}` : null,
+      source: 'Ilustración conceptual SeñaSV · Referencia lingüística: LESSA Virtual y DEES-LESSA',
+      note: `Referencia conceptual para “${label}”. No representa la configuración manual de la seña; confirma orientación, ubicación y movimiento con material LESSA autorizado antes de capturar.`,
     };
   }
 
