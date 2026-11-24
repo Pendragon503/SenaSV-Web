@@ -59,8 +59,8 @@ function shell(content: string): string {
       </nav>
     </header>
     <main class="main">${content}</main>
-    <footer class="footer"><strong>SeñaSV</strong><span>Proyecto académico ARC115 · Procesamiento responsable de datos · LESSA sujeta a validación especializada</span></footer>
-    ${consent === 'unset' && currentView !== 'entrenamiento' ? consentBanner() : ''}
+    <footer class="footer"><div class="footer-brand"><strong>SeñaSV</strong><span>Proyecto académico ARC115 · LESSA sujeta a validación especializada</span></div><details class="footer-privacy"><summary>Privacidad, cookies y datos de entrenamiento</summary><div><p><strong>Coordenadas, no imágenes.</strong> Al entrenar se guardan la etiqueta, 126 coordenadas normalizadas, fecha técnica y versiones de la aplicación y del consentimiento. Nunca guardamos fotografías, video, audio, rostro, nombre ni ubicación.</p><p>Una cookie conserva tu decisión durante 12 meses. Las muestras se almacenan localmente y se envían a la matriz colectiva únicamente cuando el servidor seguro está disponible.</p>${consent === 'accepted' ? '<button class="footer-link" data-revoke-consent>Retirar autorización y eliminar mis contribuciones</button>' : '<span>Estado: autorización no concedida.</span>'}</div></details></footer>
+    ${consent === 'unset' ? consentBanner() : ''}
   </div>`;
 }
 
@@ -136,12 +136,6 @@ function recognitionView(): string {
 
 function trainingView(): string {
   const initialReference = getReference(trainingLabels[0]);
-  const consent = readTrainingConsent();
-  const consentMessage = consent === 'accepted'
-    ? 'Autorización activa: las muestras se guardarán localmente y se enviarán a la matriz colectiva cuando el servidor esté disponible.'
-    : consent === 'declined'
-      ? 'No autorizaste guardar muestras. Puedes cambiar esta decisión para colaborar con el entrenamiento.'
-      : 'Antes de capturar debes aceptar la autorización de datos de entrenamiento.';
   return `<section class="section-heading training-heading"><p class="eyebrow">Gestión de datos · Participación voluntaria</p><h1>Entrenamiento supervisado</h1><p>Selecciona una clase, prepara la seña y registra 12 muestras. En este módulo no se ejecuta reconocimiento ni síntesis de voz.</p></section>
   <nav class="training-workflow" aria-label="Etapas del entrenamiento"><div><strong>01</strong><span>Selecciona</span><small>Letra, número o palabra</small></div><div><strong>02</strong><span>Prepara</span><small>Mano centrada y visible</small></div><div><strong>03</strong><span>Captura</span><small>12 muestras variadas</small></div></nav>
   <div class="training-layout">
@@ -150,7 +144,6 @@ function trainingView(): string {
       <div class="camera-controls"><button class="button primary" id="camera-toggle">Iniciar cámara</button><span class="status" id="runtime-status" data-state="idle"><span class="status-dot"></span><span id="status-text">Listo para iniciar</span></span></div><p class="camera-guidance">Coloca una sola mano completa dentro del encuadre. Cambia ligeramente la distancia y el ángulo entre rondas.</p>
     </section>
     <aside class="panel training-panel">
-      <div class="training-consent" data-state="${consent}"><div class="consent-status-line"><strong>Privacidad del entrenamiento</strong><span>${consent === 'accepted' ? 'Autorizado' : 'Requiere autorización'}</span></div><p>${consentMessage}</p><p class="privacy-highlight"><strong>Nunca guardamos</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p><details><summary>Consultar exactamente qué datos se guardan</summary><ul><li>Etiqueta seleccionada.</li><li>126 coordenadas normalizadas de 21 puntos por mano.</li><li>Fecha técnica y versiones de la aplicación y del consentimiento.</li><li>Identificador aleatorio protegido mediante hash.</li><li>Hasta 40 muestras locales por etiqueta.</li></ul></details>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y eliminar mis contribuciones</button>'}</div>
       <section class="training-step"><p class="step-label">Etapa 01 · Seleccionar</p><h2>Clase de entrenamiento</h2><label for="training-label">Letra, número o palabra</label><select id="training-label"><optgroup label="Abecedario">${alphabetLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="Números 0–100">${numberLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="50 palabras objetivo">${wordLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup></select>
       <details class="reference-details"><summary>Ver referencia visual de la seña</summary><figure class="training-reference" id="training-reference"><img id="training-reference-image" src="${initialReference.image}" alt="Página de referencia para ${initialReference.label}"><figcaption><strong id="training-reference-title">Referencia para ${initialReference.label}</strong><span id="training-reference-note">${initialReference.note}</span><small id="training-reference-source">${initialReference.source} · página ${initialReference.page}</small></figcaption></figure></details></section>
       <section class="training-step capture-step"><p class="step-label">Etapas 02–03 · Preparar y capturar</p><h2>Registro de muestras</h2><p class="capture-reminder">Mano completa, vertical y centrada. Mantén la seña estable durante la captura.</p><div class="training-progress"><div id="training-progress-fill"></div></div><p class="training-status" id="training-status">${personalClassifier.trainedLabels()} clases listas · ${personalClassifier.totalSamples()} muestras locales</p><div class="training-actions"><button class="button primary" id="capture-button" disabled>Capturar 12 muestras</button><button class="button" id="clear-class-button">Borrar esta clase</button></div></section>

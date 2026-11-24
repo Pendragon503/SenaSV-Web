@@ -34,8 +34,14 @@ button { cursor: pointer; }
 .nav button:hover { color: white; background: rgba(255,255,255,.07); }
 .nav button[aria-current="page"] { color: white; background: rgba(64, 148, 178, .25); box-shadow: inset 0 -2px #65b0c7; }
 .main { width: min(1220px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(1.5rem, 4vw, 3.25rem) 0; }
-.footer { display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem clamp(1rem, 4vw, 3rem); color: #9fb3c0; background: #0b2942; font-size: .78rem; }
+.footer { display: flex; justify-content: space-between; align-items: start; gap: 2rem; padding: 1.25rem clamp(1rem, 4vw, 3rem); color: #9fb3c0; background: #0b2942; font-size: .78rem; }
 .footer strong { color: white; letter-spacing: .05em; }
+.footer-brand { display: grid; gap: .3rem; }
+.footer-privacy { max-width: 560px; text-align: right; }
+.footer-privacy summary { color: white; font-weight: 750; cursor: pointer; }
+.footer-privacy div { margin-top: .75rem; padding: .85rem; border: 1px solid rgba(255,255,255,.14); border-radius: .5rem; background: rgba(255,255,255,.05); text-align: left; }
+.footer-privacy p { margin: 0 0 .6rem; line-height: 1.5; }
+.footer-link { padding: 0; border: 0; color: #b8ddea; background: transparent; text-decoration: underline; font-size: inherit; }
 
 .hero { display: grid; grid-template-columns: 1.08fr .92fr; align-items: center; gap: clamp(2rem, 6vw, 5rem); min-height: min(650px, 72vh); }
 .hero-badge { display: inline-flex; align-items: center; gap: .5rem; margin-bottom: 1.4rem; padding: .42rem .7rem; border: 1px solid #c8d9e2; border-radius: 999px; color: #38596c; background: rgba(255,255,255,.72); font-size: .7rem; font-weight: 760; letter-spacing: .035em; }
@@ -197,7 +203,6 @@ h1 { max-width: 15ch; margin: 0; color: var(--blue-900); font-size: clamp(2.4rem
 .consent-banner summary { width: fit-content; color: var(--blue-700); font-size: .7rem; font-weight: 750; cursor: pointer; }
 .consent-actions { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: flex-end; }
 .consent-actions .button { padding: .62rem .8rem; font-size: .76rem; }
-.app-shell:has(.training-layout) > .consent-banner { display: none; }
 
 .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
 .category-card { padding: 1.2rem; border: 1px solid var(--border); border-radius: 1rem; background: white; }
