@@ -1,0 +1,2 @@
+participant_id,label,take_id,file_name,fps,width,height,dominant_hand,lighting,background,consent_version,validated_by,status
+P001,hola,001,toma-001.mp4,30,1280,720,derecha,interior_uniforme,claro,2026-11-23,,pending

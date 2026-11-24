@@ -8,3 +8,4 @@ data/
 .env
 cloudflare/.dev.vars
 .wrangler/
+dataset/private/
