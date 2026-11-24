@@ -1,6 +1,14 @@
 const CONSENT_VERSION = '2026-09-24';
 const MAX_BATCH_SIZE = 40;
 const FEATURE_COUNT = 126;
+const WORD_LABELS = new Set([
+  'HOLA', 'BUENOS DÍAS', 'BUENAS TARDES', 'BUENAS NOCHES', 'ADIÓS', 'GRACIAS', 'POR FAVOR', 'PERDÓN', 'BIENVENIDO', 'MUCHO GUSTO',
+  'QUÉ', 'QUIÉN', 'DÓNDE', 'CUÁNDO', 'CÓMO', 'POR QUÉ', 'CUÁNTO', 'CUÁL',
+  'AYUDA', 'AGUA', 'COMER', 'BEBER', 'BAÑO', 'DOLOR', 'MÉDICO', 'ESPERAR', 'IR', 'VENIR', 'QUERER', 'NECESITAR',
+  'MAMÁ', 'PAPÁ', 'HERMANO', 'HERMANA', 'FAMILIA', 'AMIGO', 'NIÑO', 'PERSONA',
+  'UNIVERSIDAD', 'ESTUDIANTE', 'DOCENTE', 'CLASE', 'LIBRO', 'APRENDER', 'ESTUDIAR', 'COMPUTADORA',
+  'EMERGENCIA', 'PELIGRO', 'POLICÍA', 'HOSPITAL',
+]);
 
 export default {
   async fetch(request, env) {
@@ -118,7 +126,8 @@ function validateBatch(body) {
   for (const input of body.samples) {
     if (!input || typeof input !== 'object' || !isUuid(input.id)) return failure('Identificador de muestra inválido.');
     const label = String(input.label || '').toUpperCase();
-    if (!/^(?:[A-ZÑ]|CH|LL|RR|(?:100|[1-9]?[0-9]))$/.test(label)) return failure(`Etiqueta inválida: ${label}`);
+    const validAlphabetOrNumber = /^(?:[A-ZÑ]|CH|LL|RR|(?:100|[1-9]?[0-9]))$/.test(label);
+    if (!validAlphabetOrNumber && !WORD_LABELS.has(label)) return failure(`Etiqueta inválida: ${label}`);
     if (!Array.isArray(input.features) || input.features.length !== FEATURE_COUNT) return failure(`Cada muestra debe contener ${FEATURE_COUNT} características.`);
     const features = input.features.map(Number);
     if (features.some((value) => !Number.isFinite(value) || Math.abs(value) > 20)) return failure('La muestra contiene valores fuera de rango.');

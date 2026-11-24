@@ -3,7 +3,7 @@ import { HandTracker } from './hand-tracker';
 import { SignClassifier } from './classifier';
 import { drawHands } from './draw';
 import { normalizeHands } from './normalize';
-import { pilotClasses, signCatalog, sources } from './catalog';
+import { pilotClasses, signCatalog, sources, wordLabels } from './catalog';
 import { PilotRecognizer } from './pilot-recognizer';
 import { PersonalClassifier } from './personal-classifier';
 import { AlphabetRecognizer, DEFAULT_ALPHABET_LABELS } from './alphabet-recognizer';
@@ -38,14 +38,15 @@ let lastSpokenAt = 0;
 let captureLabel = '';
 let captureRemaining = 0;
 let lastCaptureAt = 0;
-let recognitionMode: 'alphabet' | 'numbers' = 'alphabet';
+type RecognitionMode = 'alphabet' | 'numbers' | 'words';
+let recognitionMode: RecognitionMode = 'alphabet';
 
 type TrainingConsent = 'accepted' | 'declined' | 'unset';
 const CONSENT_COOKIE = 'senasv_training_consent';
 
 const alphabetLabels = ['A', 'B', 'C', 'CH', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'LL', 'M', 'N', 'Ñ', 'O', 'P', 'Q', 'R', 'RR', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 const numberLabels = Array.from({ length: 101 }, (_, index) => String(index));
-const trainingLabels = [...alphabetLabels, ...numberLabels];
+const trainingLabels = [...alphabetLabels, ...numberLabels, ...wordLabels];
 const numberScopeGroups = ['0–9', '10–19', '20–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80–89', '90–99', '100'];
 
 function shell(content: string): string {
@@ -105,6 +106,7 @@ function homeView(): string {
     <div class="scope-heading"><p class="eyebrow">Alcance de identificación</p><h2 id="scope-title">Clases contempladas por el proyecto</h2><p>El catálogo completo está disponible para captura y entrenamiento. Las etiquetas destacadas corresponden al reconocimiento geométrico base disponible actualmente.</p></div>
     <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 01</small><h3>Alfabeto LESSA</h3></div><strong>${alphabetLabels.length} etiquetas</strong></div><div class="label-grid">${alphabetLabels.map((label) => `<span class="${DEFAULT_ALPHABET_LABELS.includes(label) ? 'available' : ''}">${label}</span>`).join('')}</div><p><i></i> Reconocimiento base: ${DEFAULT_ALPHABET_LABELS.join(', ')}. Las demás etiquetas requieren muestras personales validadas.</p></article>
     <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 02</small><h3>Numeración</h3></div><strong>0–100</strong></div><div class="number-range-grid">${numberScopeGroups.map((range, index) => `<span class="${index === 0 ? 'available' : ''}">${range}</span>`).join('')}</div><p><i></i> Reconocimiento base: 0–4. El entrenamiento admite valores individuales desde 0 hasta 100.</p></article>
+    <article class="scope-card word-scope"><div class="scope-card-title"><div><small>Conjunto 03</small><h3>Vocabulario funcional</h3></div><strong>50 palabras objetivo</strong></div><div class="word-grid">${wordLabels.map((label) => `<span>${label}</span>`).join('')}</div><p><i></i> Las palabras están disponibles para captura y aprendizaje personal/colectivo. Su reconocimiento requiere muestras reales y validación por una persona competente en LESSA.</p></article>
   </section>`;
 }
 
@@ -118,7 +120,7 @@ function recognitionView(): string {
       <div class="camera-controls"><button class="button primary" id="camera-toggle">Iniciar cámara</button><span class="status" id="runtime-status" data-state="idle"><span class="status-dot"></span><span id="status-text">Listo para iniciar</span></span></div>
     </section>
     <aside class="panel results" aria-live="polite">
-      <div class="recognition-mode"><label for="recognition-mode">Qué deseas reconocer</label><select id="recognition-mode"><option value="alphabet">Abecedario</option><option value="numbers">Números</option></select><p id="ready-labels">Abecedario listo: ${availableAlphabet.join(', ')}</p></div>
+      <div class="recognition-mode"><label for="recognition-mode">Qué deseas reconocer</label><select id="recognition-mode"><option value="alphabet">Abecedario</option><option value="numbers">Números</option><option value="words">Palabras</option></select><p id="ready-labels">Abecedario listo: ${availableAlphabet.join(', ')}</p></div>
       <div class="prediction"><small>Resultado</small><strong id="prediction-label">Sin predicción</strong><div class="confidence-track"><div class="confidence-fill" id="confidence-fill"></div></div><p id="confidence-text">Confianza: —</p></div>
       <p class="notice" id="model-notice">Cargando detector y clasificador…</p>
       <button class="button" id="speak-button">Escuchar resultado</button>
@@ -144,7 +146,7 @@ function trainingView(): string {
     <aside class="panel training-panel">
       <div class="training-consent" data-state="${consent}"><strong>Datos que se guardarán</strong><p>${consentMessage}</p><ul><li>Etiqueta de la letra o número.</li><li>126 valores X, Y y Z normalizados de 21 puntos por espacio de mano.</li><li>Fecha técnica y versiones del consentimiento y de la aplicación.</li><li>Identificador aleatorio convertido en hash por el servidor.</li><li>Hasta 40 muestras locales por etiqueta.</li></ul><p><strong>No se guardan:</strong> imágenes, video, audio, rostro, nombre ni ubicación.</p>${consent !== 'accepted' ? '<button class="button full" data-consent-choice="accepted">Aceptar y habilitar entrenamiento</button>' : '<button class="consent-link" data-revoke-consent>Retirar autorización y eliminar mis contribuciones</button>'}</div>
       <p class="step-label">Etapa 01</p><h2>Selección de categoría</h2>
-      <label for="training-label">Letra o número</label><select id="training-label">${trainingLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</select>
+      <label for="training-label">Clase de entrenamiento</label><select id="training-label"><optgroup label="Abecedario">${alphabetLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="Números 0–100">${numberLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup><optgroup label="50 palabras objetivo">${wordLabels.map((label) => `<option value="${label}">${label}</option>`).join('')}</optgroup></select>
       <figure class="training-reference" id="training-reference"><img id="training-reference-image" src="${initialReference.image}" alt="Página de referencia para ${initialReference.label}"><figcaption><strong id="training-reference-title">Referencia para ${initialReference.label}</strong><span id="training-reference-note">${initialReference.note}</span><small id="training-reference-source">${initialReference.source} · página ${initialReference.page}</small></figcaption></figure>
       <p class="step-label">Etapa 02</p><h2>Preparación de captura</h2><p>Mantén una sola mano completa, vertical y centrada. Modifica ligeramente la distancia y el ángulo entre rondas.</p>
       <p class="step-label">Etapa 03</p><h2>Registro de muestras</h2>
@@ -213,6 +215,7 @@ async function bindRecognition(): Promise<void> {
   const button = required<HTMLButtonElement>('camera-toggle');
   const readyAlphabet = personalClassifier.readyLabels(new Set(alphabetLabels));
   const readyNumbers = personalClassifier.readyLabels(new Set(numberLabels));
+  const readyWords = personalClassifier.readyLabels(new Set(wordLabels));
   required<HTMLButtonElement>('speak-button').addEventListener('click', speakResult);
   required<HTMLSelectElement>('recognition-mode').addEventListener('change', changeRecognitionMode);
   button.addEventListener('click', () => stream ? stopCamera() : void startCamera());
@@ -222,7 +225,7 @@ async function bindRecognition(): Promise<void> {
     if (currentView !== 'reconocimiento') return;
     required<HTMLElement>('model-notice').textContent = classifier.isTrained
       ? 'Modelo entrenado cargado. Se aplicará el umbral de confianza configurado.'
-      : `Reconocimiento base activo para ${DEFAULT_ALPHABET_LABELS.join(', ')} y números 0–4. Letras personales listas: ${readyAlphabet.length}. Números personales listos: ${readyNumbers.length}.`;
+      : `Reconocimiento base activo para ${DEFAULT_ALPHABET_LABELS.join(', ')} y números 0–4. Entrenamiento personal: ${readyAlphabet.length} letras, ${readyNumbers.length} números y ${readyWords.length} de 50 palabras.`;
     required<HTMLElement>('metric-backend').textContent = classifier.backend;
     setStatus('Detector listo', 'ready');
   } catch (error) {
@@ -330,13 +333,13 @@ function processFrame(timestamp: number): void {
     let prediction: Prediction | null = null;
     if (result.landmarks.length > 0) {
       const features = normalizeHands(result.landmarks);
-      const allowedLabels = new Set(recognitionMode === 'alphabet' ? alphabetLabels : numberLabels);
+      const allowedLabels = new Set(labelsForRecognitionMode());
       prediction = classifier.isTrained
         ? classifier.predict(features)
         : personalClassifier.predict(features, allowedLabels)
           ?? (recognitionMode === 'numbers'
             ? pilotRecognizer.predict(result.landmarks)
-            : alphabetRecognizer.predict(result.landmarks));
+            : recognitionMode === 'alphabet' ? alphabetRecognizer.predict(result.landmarks) : null);
     }
     updateRecognition(prediction, metrics);
   }
@@ -349,7 +352,7 @@ function updateRecognition(prediction: Prediction | null, metrics: RuntimeMetric
   const confidenceFill = required<HTMLElement>('confidence-fill');
 
   if (!prediction) {
-    const allowed = new Set(recognitionMode === 'alphabet' ? alphabetLabels : numberLabels);
+    const allowed = new Set(labelsForRecognitionMode());
     const hasReadyClasses = personalClassifier.readyLabels(allowed).length > 0;
     label.textContent = metrics.hands === 0
       ? 'Coloca una mano en cámara'
@@ -397,18 +400,26 @@ function speakAutomatically(label: string): void {
 }
 
 function changeRecognitionMode(): void {
-  recognitionMode = required<HTMLSelectElement>('recognition-mode').value as 'alphabet' | 'numbers';
+  recognitionMode = required<HTMLSelectElement>('recognition-mode').value as RecognitionMode;
   pilotRecognizer.reset();
   alphabetRecognizer.reset();
   lastSpokenLabel = '';
-  const allowed = new Set(recognitionMode === 'alphabet' ? alphabetLabels : numberLabels);
+  const allowed = new Set(labelsForRecognitionMode());
   const ready = personalClassifier.readyLabels(allowed);
   required<HTMLElement>('ready-labels').textContent = recognitionMode === 'alphabet'
     ? `Abecedario listo: ${[...new Set([...DEFAULT_ALPHABET_LABELS, ...ready])].join(', ')}`
-    : `Números listos: ${ready.length ? ready.join(', ') : '0–4 disponibles por reglas'}`;
+    : recognitionMode === 'numbers'
+      ? `Números listos: ${ready.length ? ready.join(', ') : '0–4 disponibles por reglas'}`
+      : `Palabras listas: ${ready.length ? `${ready.length}/50 · ${ready.join(', ')}` : '0/50 · entrena cada palabra antes de reconocerla'}`;
   required<HTMLElement>('prediction-label').textContent = 'Sin predicción';
   required<HTMLElement>('confidence-text').textContent = 'Confianza: —';
   required<HTMLElement>('confidence-fill').style.width = '0%';
+}
+
+function labelsForRecognitionMode(): string[] {
+  if (recognitionMode === 'alphabet') return alphabetLabels;
+  if (recognitionMode === 'numbers') return numberLabels;
+  return wordLabels;
 }
 
 function beginCapture(): void {

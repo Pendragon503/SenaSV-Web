@@ -24,6 +24,14 @@ Estas ilustraciones funcionan como referencia humana y para diseñar caracterís
 
 Fuente: https://sites.google.com/clases.edu.sv/lessa/recursos-m%C3%B3dulo-1
 
+### LESSA Virtual
+
+El canal “Aprende LESSA con Becky Soundy” se presenta como un centro de enseñanza de Lengua de Señas Salvadoreña y publica lecciones, vocabulario común, frases de cortesía, canciones y cuentos. Se utilizará para estudiar movimiento, orientación, ubicación y componentes no manuales de las 50 palabras objetivo.
+
+Los videos se consultarán mediante YouTube o su reproductor embebido. No se descargarán, recortarán ni transformarán en un dataset de entrenamiento sin autorización expresa de la titular. Las muestras del modelo serán capturas propias de landmarks con consentimiento y validación humana.
+
+Fuente: https://www.youtube.com/@lessavirtual
+
 ## Clases piloto
 
 El reconocimiento geométrico base se limita a clases principalmente estáticas:

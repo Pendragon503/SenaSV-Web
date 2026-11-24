@@ -5,6 +5,7 @@ import { openDatabase } from './db.mjs';
 import { applyCors, createRateLimiter } from './security.mjs';
 import { handleLogin, handleLogout, handleMe, handleRegister } from './routes/auth.mjs';
 import { handleGetLearningPath, handlePostProgress, handleProgressSummary } from './routes/learning-path.mjs';
+import { wordLabels } from './catalog.mjs';
 
 const port = Number(process.env.PORT || 8787);
 const databasePath = process.env.DATABASE_PATH || 'data/senasv.sqlite';
@@ -185,7 +186,9 @@ function validateBatch(body) {
   const samples = body.samples.map((sample) => {
     if (!sample || typeof sample !== 'object') throw new Error('Muestra inválida.');
     const label = String(sample.label || '').toUpperCase();
-    if (!/^(?:[A-ZÑ]|CH|LL|RR|(?:100|[1-9]?[0-9]))$/.test(label)) throw new Error(`Etiqueta inválida: ${label}`);
+    const validAlphabetOrNumber = /^(?:[A-ZÑ]|CH|LL|RR|(?:100|[1-9]?[0-9]))$/.test(label);
+    const validWord = wordLabels.some((word) => word.toUpperCase() === label);
+    if (!validAlphabetOrNumber && !validWord) throw new Error(`Etiqueta inválida: ${label}`);
     if (!Array.isArray(sample.features) || sample.features.length !== 126) throw new Error('Cada muestra debe contener 126 características.');
     const features = sample.features.map((value) => Number(value));
     if (features.some((value) => !Number.isFinite(value) || Math.abs(value) > 20)) throw new Error('La muestra contiene valores fuera de rango.');

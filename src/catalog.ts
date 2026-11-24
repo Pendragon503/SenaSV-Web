@@ -4,10 +4,10 @@ export type ValidationStatus = 'presencia-verificada' | 'pendiente-validacion-si
 export interface SignClass {
   id: string;
   label: string;
-  category: 'Abecedario' | 'Números' | 'Saludos y cortesía' | 'Preguntas' | 'Necesidades y acciones' | 'Universidad';
+  category: 'Abecedario' | 'Números' | 'Saludos y cortesía' | 'Preguntas' | 'Necesidades y acciones' | 'Familia y personas' | 'Educación' | 'Emergencias';
   status: ClassStatus;
   validation: ValidationStatus;
-  sourceId: 'dees-lessa' | 'hablemos-lessa' | 'lessa-modulo1';
+  sourceId: 'dees-lessa' | 'hablemos-lessa' | 'lessa-modulo1' | 'lessa-virtual';
   notes: string;
 }
 
@@ -45,6 +45,14 @@ export const sources: CatalogSource[] = [
     usage: 'Guía visual de 11 configuraciones para contrastar extensión, curvatura, pinza y orientación durante la captura.',
     rights: 'Material disponible para descarga educativa; conservar atribución y no reutilizar como dataset sin autorización expresa.',
   },
+  {
+    id: 'lessa-virtual',
+    title: 'Aprende LESSA con Becky Soundy',
+    institution: 'LESSA Virtual',
+    url: 'https://www.youtube.com/@lessavirtual',
+    usage: 'Referencia pedagógica para contrastar vocabulario común, frases de cortesía, movimiento y expresión no manual.',
+    rights: 'Consultar mediante YouTube. No descargar, recortar ni convertir videos en dataset sin autorización expresa de la titular.',
+  },
 ];
 
 // Piloto deliberadamente estático para validar primero cámara, landmarks y clasificador.
@@ -69,18 +77,34 @@ export const pilotClasses: SignClass[] = [
   })),
 ];
 
-export const plannedClasses: SignClass[] = [
-  ['hola', 'Saludos y cortesía'], ['gracias', 'Saludos y cortesía'], ['por favor', 'Saludos y cortesía'],
-  ['adiós', 'Saludos y cortesía'], ['qué', 'Preguntas'], ['quién', 'Preguntas'], ['dónde', 'Preguntas'],
+const wordEntries: Array<[string, SignClass['category']]> = [
+  ['hola', 'Saludos y cortesía'], ['buenos días', 'Saludos y cortesía'], ['buenas tardes', 'Saludos y cortesía'],
+  ['buenas noches', 'Saludos y cortesía'], ['adiós', 'Saludos y cortesía'], ['gracias', 'Saludos y cortesía'],
+  ['por favor', 'Saludos y cortesía'], ['perdón', 'Saludos y cortesía'], ['bienvenido', 'Saludos y cortesía'],
+  ['mucho gusto', 'Saludos y cortesía'],
+  ['qué', 'Preguntas'], ['quién', 'Preguntas'], ['dónde', 'Preguntas'], ['cuándo', 'Preguntas'],
+  ['cómo', 'Preguntas'], ['por qué', 'Preguntas'], ['cuánto', 'Preguntas'], ['cuál', 'Preguntas'],
   ['ayuda', 'Necesidades y acciones'], ['agua', 'Necesidades y acciones'], ['comer', 'Necesidades y acciones'],
-  ['universidad', 'Universidad'], ['estudiante', 'Universidad'], ['docente', 'Universidad'],
-].map(([label, category]) => ({
+  ['beber', 'Necesidades y acciones'], ['baño', 'Necesidades y acciones'], ['dolor', 'Necesidades y acciones'],
+  ['médico', 'Necesidades y acciones'], ['esperar', 'Necesidades y acciones'], ['ir', 'Necesidades y acciones'],
+  ['venir', 'Necesidades y acciones'], ['querer', 'Necesidades y acciones'], ['necesitar', 'Necesidades y acciones'],
+  ['mamá', 'Familia y personas'], ['papá', 'Familia y personas'], ['hermano', 'Familia y personas'],
+  ['hermana', 'Familia y personas'], ['familia', 'Familia y personas'], ['amigo', 'Familia y personas'],
+  ['niño', 'Familia y personas'], ['persona', 'Familia y personas'],
+  ['universidad', 'Educación'], ['estudiante', 'Educación'], ['docente', 'Educación'], ['clase', 'Educación'],
+  ['libro', 'Educación'], ['aprender', 'Educación'], ['estudiar', 'Educación'], ['computadora', 'Educación'],
+  ['emergencia', 'Emergencias'], ['peligro', 'Emergencias'], ['policía', 'Emergencias'], ['hospital', 'Emergencias'],
+];
+
+export const wordLabels = wordEntries.map(([label]) => label);
+
+export const plannedClasses: SignClass[] = wordEntries.map(([label, category]) => ({
   id: `${category.toLowerCase().replaceAll(' ', '-')}-${label}`,
   label,
-  category: category as SignClass['category'],
+  category,
   status: 'planificada',
   validation: 'pendiente-validacion-signo',
-  sourceId: 'dees-lessa',
+  sourceId: 'lessa-virtual',
   notes: 'Clase candidata. Requiere revisión del video de referencia y validación por una persona competente.',
 }));
 

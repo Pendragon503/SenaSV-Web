@@ -19,20 +19,25 @@ const pilotClasses = [
 ];
 
 const plannedEntries = [
-  ['hola', 'Saludos y cortesía'],
-  ['gracias', 'Saludos y cortesía'],
-  ['por favor', 'Saludos y cortesía'],
-  ['adiós', 'Saludos y cortesía'],
-  ['qué', 'Preguntas'],
-  ['quién', 'Preguntas'],
-  ['dónde', 'Preguntas'],
-  ['ayuda', 'Necesidades y acciones'],
-  ['agua', 'Necesidades y acciones'],
-  ['comer', 'Necesidades y acciones'],
-  ['universidad', 'Universidad'],
-  ['estudiante', 'Universidad'],
-  ['docente', 'Universidad'],
+  ['hola', 'Saludos y cortesía'], ['buenos días', 'Saludos y cortesía'], ['buenas tardes', 'Saludos y cortesía'],
+  ['buenas noches', 'Saludos y cortesía'], ['adiós', 'Saludos y cortesía'], ['gracias', 'Saludos y cortesía'],
+  ['por favor', 'Saludos y cortesía'], ['perdón', 'Saludos y cortesía'], ['bienvenido', 'Saludos y cortesía'],
+  ['mucho gusto', 'Saludos y cortesía'],
+  ['qué', 'Preguntas'], ['quién', 'Preguntas'], ['dónde', 'Preguntas'], ['cuándo', 'Preguntas'],
+  ['cómo', 'Preguntas'], ['por qué', 'Preguntas'], ['cuánto', 'Preguntas'], ['cuál', 'Preguntas'],
+  ['ayuda', 'Necesidades y acciones'], ['agua', 'Necesidades y acciones'], ['comer', 'Necesidades y acciones'],
+  ['beber', 'Necesidades y acciones'], ['baño', 'Necesidades y acciones'], ['dolor', 'Necesidades y acciones'],
+  ['médico', 'Necesidades y acciones'], ['esperar', 'Necesidades y acciones'], ['ir', 'Necesidades y acciones'],
+  ['venir', 'Necesidades y acciones'], ['querer', 'Necesidades y acciones'], ['necesitar', 'Necesidades y acciones'],
+  ['mamá', 'Familia y personas'], ['papá', 'Familia y personas'], ['hermano', 'Familia y personas'],
+  ['hermana', 'Familia y personas'], ['familia', 'Familia y personas'], ['amigo', 'Familia y personas'],
+  ['niño', 'Familia y personas'], ['persona', 'Familia y personas'],
+  ['universidad', 'Educación'], ['estudiante', 'Educación'], ['docente', 'Educación'], ['clase', 'Educación'],
+  ['libro', 'Educación'], ['aprender', 'Educación'], ['estudiar', 'Educación'], ['computadora', 'Educación'],
+  ['emergencia', 'Emergencias'], ['peligro', 'Emergencias'], ['policía', 'Emergencias'], ['hospital', 'Emergencias'],
 ];
+
+export const wordLabels = plannedEntries.map(([label]) => label);
 
 const plannedClasses = plannedEntries.map(([label, category]) => ({
   id: `${category.toLowerCase().replaceAll(' ', '-')}-${label}`,

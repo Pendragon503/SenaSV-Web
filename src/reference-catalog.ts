@@ -54,6 +54,16 @@ export function getReference(label: string): SignReference {
     };
   }
 
+  if (!/^\d+$/.test(label)) {
+    return {
+      label,
+      page: null,
+      image: null,
+      source: 'LESSA Virtual y DEES-LESSA',
+      note: 'Palabra objetivo pendiente de validación. Consulta la lección enlazada en el catálogo y confirma configuración, orientación, ubicación y movimiento con una persona competente en LESSA antes de capturar.',
+    };
+  }
+
   return {
     label,
     page: null,
