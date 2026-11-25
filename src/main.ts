@@ -9,6 +9,8 @@ import { PersonalClassifier } from './personal-classifier';
 import { AlphabetRecognizer, DEFAULT_ALPHABET_LABELS } from './alphabet-recognizer';
 import { clearContributionQueue, flushContributions, queueContribution, revokeCollectiveContributions } from './contribution-client';
 import { getReference, phraseLabels } from './reference-catalog';
+import { compareLabels, REFERENCE_DATASET_VERSION, REFERENCE_IMAGES, referenceLabels } from './reference-dataset';
+import { trainFromReferenceImages, type TrainingProgress } from './image-trainer';
 import type { Prediction, RuntimeMetrics, ViewName } from './types';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -48,6 +50,18 @@ const alphabetLabels = ['A', 'B', 'C', 'CH', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 
 const numberLabels = Array.from({ length: 101 }, (_, index) => String(index));
 const trainingLabels = [...alphabetLabels, ...numberLabels, ...wordLabels, ...phraseLabels];
 const numberScopeGroups = ['0–9', '10–19', '20–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80–89', '90–99', '100'];
+const imageAlphabetLabels = referenceLabels('alphabet');
+const imageNumberLabels = referenceLabels('numbers');
+const baseAlphabetLabels = sortLabels([...DEFAULT_ALPHABET_LABELS, ...imageAlphabetLabels]);
+const baseNumberLabels = sortLabels([...['0', '1', '2', '3', '4'], ...imageNumberLabels]);
+
+interface ImageModelState {
+  phase: 'idle' | 'training' | 'error';
+  progress: number;
+  message: string;
+}
+let imageModelState: ImageModelState = { phase: 'idle', progress: 0, message: '' };
+let imageTraining: Promise<void> | null = null;
 
 function shell(content: string): string {
   const consent = readTrainingConsent();
@@ -108,16 +122,14 @@ function homeView(): string {
     <article><span>03</span><div><h3>Explorar</h3><p>Revisa el catálogo, las fuentes y el estado de validación de cada clase.</p></div><button data-view="diccionario" aria-label="Abrir catálogo">→</button></article>
   </section>
   <section class="scope-overview" aria-labelledby="scope-title">
-    <div class="scope-heading"><p class="eyebrow">Alcance de identificación</p><h2 id="scope-title">Clases contempladas por el proyecto</h2><p>El catálogo completo está disponible para captura y entrenamiento. Las etiquetas destacadas corresponden al reconocimiento geométrico base disponible actualmente.</p></div>
-    <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 01</small><h3>Alfabeto LESSA</h3></div><strong>${alphabetLabels.length} etiquetas</strong></div><div class="label-grid">${alphabetLabels.map((label) => `<span class="${DEFAULT_ALPHABET_LABELS.includes(label) ? 'available' : ''}">${label}</span>`).join('')}</div><p><i></i> Reconocimiento base: ${DEFAULT_ALPHABET_LABELS.join(', ')}. Las demás etiquetas requieren muestras personales validadas.</p></article>
-    <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 02</small><h3>Numeración</h3></div><strong>0–100</strong></div><div class="number-range-grid">${numberScopeGroups.map((range, index) => `<span class="${index === 0 ? 'available' : ''}">${range}</span>`).join('')}</div><p><i></i> Reconocimiento base: 0–4. El entrenamiento admite valores individuales desde 0 hasta 100.</p></article>
+    <div class="scope-heading"><p class="eyebrow">Alcance de identificación</p><h2 id="scope-title">Clases contempladas por el proyecto</h2><p>El catálogo completo está disponible para captura y entrenamiento. Las etiquetas destacadas corresponden al reconocimiento base disponible actualmente: modelo entrenado con fotografías de referencia y reglas geométricas.</p></div>
+    <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 01</small><h3>Alfabeto LESSA</h3></div><strong>${alphabetLabels.length} etiquetas</strong></div><div class="label-grid">${alphabetLabels.map((label) => `<span class="${baseAlphabetLabels.includes(label) ? 'available' : ''}">${label}</span>`).join('')}</div><p><i></i> Reconocimiento base: ${baseAlphabetLabels.join(', ')}${imageAlphabetLabels.length ? ' (modelo entrenado con fotografías de referencia)' : ''}. ${alphabetLabels.filter((label) => !baseAlphabetLabels.includes(label)).join(', ')} requieren muestras personales validadas.</p></article>
+    <article class="scope-card"><div class="scope-card-title"><div><small>Conjunto 02</small><h3>Numeración</h3></div><strong>0–100</strong></div><div class="number-range-grid">${numberScopeGroups.map((range, index) => `<span class="${index === 0 ? 'available' : ''}">${range}</span>`).join('')}</div><p><i></i> Reconocimiento base: ${describeNumberRange(baseNumberLabels)}${imageNumberLabels.length ? ' (modelo entrenado con fotografías de referencia)' : ''}. El entrenamiento admite valores individuales desde 0 hasta 100.</p></article>
     <article class="scope-card word-scope"><div class="scope-card-title"><div><small>Conjunto 03</small><h3>Vocabulario funcional</h3></div><strong>50 palabras objetivo</strong></div><div class="word-categories"><span>Saludos · 10</span><span>Preguntas · 8</span><span>Necesidades · 12</span><span>Personas · 8</span><span>Educación · 8</span><span>Emergencias · 4</span></div><details class="word-details"><summary>Consultar las 50 palabras</summary><div class="word-grid">${wordLabels.map((label) => `<span>${label}</span>`).join('')}</div></details><p><i></i> Disponibles para captura y aprendizaje personal/colectivo; requieren muestras reales y validación competente en LESSA.</p></article>
   </section>`;
 }
 
 function recognitionView(): string {
-  const readyAlphabet = personalClassifier.readyLabels(new Set(alphabetLabels));
-  const availableAlphabet = [...new Set([...DEFAULT_ALPHABET_LABELS, ...readyAlphabet])];
   return `<section class="section-heading"><p class="eyebrow">Módulo operativo · Versión 0.1</p><h1>Reconocimiento en tiempo real</h1><p>La captura y el procesamiento visual se realizan localmente. Los resultados corresponden a un prototipo académico y requieren validación especializada antes de cualquier aplicación institucional.</p></section>
   <div class="recognition-layout">
     <section class="panel" aria-label="Cámara">
@@ -125,9 +137,15 @@ function recognitionView(): string {
       <div class="camera-controls"><button class="button primary" id="camera-toggle">Iniciar cámara</button><span class="status" id="runtime-status" data-state="idle"><span class="status-dot"></span><span id="status-text">Listo para iniciar</span></span></div>
     </section>
     <aside class="panel results" aria-live="polite">
-      <div class="recognition-mode"><label for="recognition-mode">Qué deseas reconocer</label><select id="recognition-mode"><option value="alphabet">Abecedario</option><option value="numbers">Números</option><option value="words">Palabras</option></select><p id="ready-labels">Abecedario listo: ${availableAlphabet.join(', ')}</p></div>
+      <div class="recognition-mode"><label for="recognition-mode">Qué deseas reconocer</label><select id="recognition-mode">${([['alphabet', 'Abecedario'], ['numbers', 'Números'], ['words', 'Palabras']] as const).map(([value, text]) => `<option value="${value}" ${recognitionMode === value ? 'selected' : ''}>${text}</option>`).join('')}</select><p id="ready-labels">${readyLabelsText()}</p></div>
       <div class="prediction"><small>Resultado</small><strong id="prediction-label">Sin predicción</strong><div class="confidence-track"><div class="confidence-fill" id="confidence-fill"></div></div><p id="confidence-text">Confianza: —</p></div>
       <p class="notice" id="model-notice">Cargando detector y clasificador…</p>
+      <section class="model-card" aria-label="Modelo entrenado con imágenes">
+        <div class="model-card-head"><small>Modelo de imágenes LESSA</small><span class="model-badge" id="image-model-badge">—</span></div>
+        <p id="image-model-status">Comprobando modelo…</p>
+        <div class="training-progress"><div id="image-model-progress"></div></div>
+        <div class="model-actions"><button class="button" id="retrain-model-button" type="button">Reentrenar con imágenes</button><button class="button" id="export-model-button" type="button" disabled>Exportar modelo</button></div>
+      </section>
       <button class="button" id="speak-button">Escuchar resultado</button>
       <div class="metrics"><div class="metric"><span>FPS</span><strong id="metric-fps">—</strong></div><div class="metric"><span>Detección</span><strong id="metric-detection">—</strong></div><div class="metric"><span>Backend TF</span><strong id="metric-backend">—</strong></div><div class="metric"><span>Manos</span><strong id="metric-hands">0</strong></div></div>
     </aside>
@@ -165,7 +183,7 @@ function dictionaryView(): string {
 
 function infoView(): string {
   return `<section class="section-heading"><p class="eyebrow">Marco institucional</p><h1>Información del proyecto</h1><p>Arquitectura multiplataforma orientada a investigación académica, accesibilidad, privacidad y medición verificable del desempeño.</p></section>
-  <div class="info-grid"><article><h2>Flujo técnico</h2><ol><li>Permiso y captura de cámara.</li><li>Detección de hasta dos manos.</li><li>Normalización de landmarks.</li><li>Inferencia TensorFlow.js.</li><li>Etiqueta, confianza y voz opcional.</li></ol></article><article><h2>Privacidad</h2><p>Los fotogramas se procesan dentro del navegador. El prototipo no incluye carga de imágenes o video a servidores.</p></article><article><h2>Gobernanza de datos</h2><p>Solo se incorporarán grabaciones con consentimiento, código anónimo de signante y finalidad académica documentada. Las referencias en línea no se copiarán al dataset sin licencia o permiso expreso.</p></article><article><h2>Criterio lingüístico</h2><p>Cada clase debe contrastarse con recursos oficiales de LESSA y validarse con una persona competente. Las variantes se documentarán; no se asumirá equivalencia con ASL.</p></article><article><h2>Alcance inicial</h2><p>El piloto reconoce por reglas A, B, D, F, G, H, I, L, U, V, W, Y y 0-4. Las demás clases requieren muestras propias; las señas dinámicas usarán ventanas temporales.</p></article><article><h2>Métricas ARC115</h2><p>Macro-F1 por signante, matriz de confusión, FPS, latencia p50/p95, backend, tamaño del modelo, memoria y compatibilidad por dispositivo.</p></article><article><h2>Pruebas de segunda entrega</h2><p>Se verificará compatibilidad en Chrome, Edge, Firefox, Safari y Chrome Android; permisos y estabilidad de cámara; instalación PWA; persistencia local; API, validaciones y recuperación ante fallos del backend.</p></article><article><h2>Calidad documental</h2><p>Las figuras se entregarán en formato vectorial o con un ancho mínimo de 1600 px, texto legible, numeración, título, fuente y referencia explícita dentro del documento.</p></article></div>`;
+  <div class="info-grid"><article><h2>Flujo técnico</h2><ol><li>Permiso y captura de cámara.</li><li>Detección de hasta dos manos.</li><li>Normalización de landmarks.</li><li>Inferencia TensorFlow.js.</li><li>Etiqueta, confianza y voz opcional.</li></ol></article><article><h2>Privacidad</h2><p>Los fotogramas se procesan dentro del navegador. El prototipo no incluye carga de imágenes o video a servidores.</p></article><article><h2>Gobernanza de datos</h2><p>Solo se incorporarán grabaciones con consentimiento, código anónimo de signante y finalidad académica documentada. Las referencias en línea no se copiarán al dataset sin licencia o permiso expreso.</p></article><article><h2>Criterio lingüístico</h2><p>Cada clase debe contrastarse con recursos oficiales de LESSA y validarse con una persona competente. Las variantes se documentarán; no se asumirá equivalencia con ASL.</p></article><article><h2>Alcance inicial</h2><p>Un modelo TensorFlow.js aprende de las fotografías de <code>dataset/imagenes</code> (${REFERENCE_IMAGES.length} imágenes: ${imageAlphabetLabels.join(', ')}${imageNumberLabels.length ? ` y ${describeNumberRange(imageNumberLabels)}` : ''}) mediante landmarks y aumento de datos. Las reglas geométricas cubren A, B, D, F, G, H, I, L, U, V, W, Y y 0–4 mientras el modelo se prepara. Las demás clases requieren muestras propias; las señas dinámicas usarán ventanas temporales.</p></article><article><h2>Métricas ARC115</h2><p>Macro-F1 por signante, matriz de confusión, FPS, latencia p50/p95, backend, tamaño del modelo, memoria y compatibilidad por dispositivo.</p></article><article><h2>Pruebas de segunda entrega</h2><p>Se verificará compatibilidad en Chrome, Edge, Firefox, Safari y Chrome Android; permisos y estabilidad de cámara; instalación PWA; persistencia local; API, validaciones y recuperación ante fallos del backend.</p></article><article><h2>Calidad documental</h2><p>Las figuras se entregarán en formato vectorial o con un ancho mínimo de 1600 px, texto legible, numeración, título, fuente y referencia explícita dentro del documento.</p></article></div>`;
 }
 
 function bindNavigation(): void {
@@ -211,20 +229,153 @@ async function bindRecognition(): Promise<void> {
   const readyWords = personalClassifier.readyLabels(new Set([...wordLabels, ...phraseLabels]));
   required<HTMLButtonElement>('speak-button').addEventListener('click', speakResult);
   required<HTMLSelectElement>('recognition-mode').addEventListener('change', changeRecognitionMode);
+  required<HTMLButtonElement>('retrain-model-button').addEventListener('click', () => void ensureImageModel(true));
+  required<HTMLButtonElement>('export-model-button').addEventListener('click', () => void exportImageModel());
   button.addEventListener('click', () => stream ? stopCamera() : void startCamera());
+  renderImageModelPanel();
   setStatus('Cargando MediaPipe y TensorFlow.js…', 'idle');
   try {
-    await Promise.all([tracker.initialize(), classifier.initialize()]);
+    await Promise.all([tracker.initialize(), classifier.initialize(REFERENCE_DATASET_VERSION)]);
     if (currentView !== 'reconocimiento') return;
+    const personalSummary = `Entrenamiento personal: ${readyAlphabet.length} letras, ${readyNumbers.length} números y ${readyWords.length} de 50 palabras.`;
     required<HTMLElement>('model-notice').textContent = classifier.isTrained
-      ? 'Modelo entrenado cargado. Se aplicará el umbral de confianza configurado.'
-      : `Reconocimiento base activo para ${DEFAULT_ALPHABET_LABELS.join(', ')} y números 0–4. Entrenamiento personal: ${readyAlphabet.length} letras, ${readyNumbers.length} números y ${readyWords.length} de 50 palabras.`;
+      ? `Modelo entrenado activo; las predicciones se aceptan con confianza ≥ 70 % sostenida. ${personalSummary}`
+      : `Reconocimiento por reglas activo para ${DEFAULT_ALPHABET_LABELS.join(', ')} y números 0–4 mientras se entrena el modelo de imágenes. ${personalSummary}`;
     required<HTMLElement>('metric-backend').textContent = classifier.backend;
+    renderImageModelPanel();
     setStatus('Detector listo', 'ready');
+    if (!classifier.isTrained) void ensureImageModel();
   } catch (error) {
     setStatus(readableError(error), 'error');
     button.disabled = true;
   }
+}
+
+/** Entrena el modelo a partir de `dataset/imagenes` si aún no hay uno válido (o si se fuerza). */
+function ensureImageModel(force = false): Promise<void> {
+  if (imageTraining) return imageTraining;
+  if (!force && classifier.isTrained) return Promise.resolve();
+  if (!REFERENCE_IMAGES.length) {
+    imageModelState = { phase: 'error', progress: 0, message: 'No hay imágenes en dataset/imagenes para entrenar.' };
+    renderImageModelPanel();
+    return Promise.resolve();
+  }
+  imageTraining = (async () => {
+    imageModelState = { phase: 'training', progress: 0, message: 'Preparando detector para fotografías…' };
+    renderImageModelPanel();
+    try {
+      const result = await trainFromReferenceImages(REFERENCE_IMAGES, REFERENCE_DATASET_VERSION, (progress) => {
+        imageModelState = { phase: 'training', ...describeTrainingProgress(progress) };
+        renderImageModelPanel();
+      });
+      classifier.useModel(result.model, result.metadata, 'local');
+      const skipped = result.failed.length
+        ? ` No se detectó la mano en: ${result.failed.map((image) => `${image.label} (${image.path})`).join(', ')}.`
+        : '';
+      const storage = result.savedLocally ? '' : ' No se pudo guardar en este navegador; se volverá a entrenar en la próxima visita.';
+      imageModelState = { phase: 'idle', progress: 1, message: `${skipped}${storage}`.trim() };
+    } catch (error) {
+      imageModelState = { phase: 'error', progress: 0, message: `No se pudo entrenar con las imágenes: ${readableError(error)}` };
+    } finally {
+      imageTraining = null;
+      renderImageModelPanel();
+      if (currentView === 'reconocimiento') {
+        required<HTMLElement>('ready-labels').textContent = readyLabelsText();
+        if (classifier.isTrained) required<HTMLElement>('model-notice').textContent = 'Modelo entrenado activo; las predicciones se aceptan con confianza ≥ 70 % sostenida.';
+      }
+    }
+  })();
+  return imageTraining;
+}
+
+async function exportImageModel(): Promise<void> {
+  try {
+    await classifier.exportModel();
+    imageModelState = { ...imageModelState, phase: 'idle', message: 'Se descargaron model.json y model.weights.bin. Cópialos en public/model/ y publica el repositorio para que todos los dispositivos usen este modelo sin reentrenar.' };
+  } catch (error) {
+    imageModelState = { ...imageModelState, phase: 'error', message: readableError(error) };
+  }
+  renderImageModelPanel();
+}
+
+function describeTrainingProgress(progress: TrainingProgress): Pick<ImageModelState, 'progress' | 'message'> {
+  if (progress.stage === 'landmarks') {
+    return {
+      progress: (progress.done / progress.total) * 0.35,
+      message: `Extrayendo landmarks de las fotografías: ${progress.done}/${progress.total} (${progress.detail})`,
+    };
+  }
+  if (progress.stage === 'training') {
+    return {
+      progress: 0.35 + (progress.done / progress.total) * 0.6,
+      message: `Entrenando red neuronal: época ${progress.done}/${progress.total} · ${progress.detail}`,
+    };
+  }
+  return { progress: 0.98, message: `${progress.detail}…` };
+}
+
+function renderImageModelPanel(): void {
+  const status = document.querySelector<HTMLElement>('#image-model-status');
+  if (!status) return;
+  const badge = document.querySelector<HTMLElement>('#image-model-badge');
+  const progress = document.querySelector<HTMLElement>('#image-model-progress');
+  const retrain = document.querySelector<HTMLButtonElement>('#retrain-model-button');
+  const exportButton = document.querySelector<HTMLButtonElement>('#export-model-button');
+  const metadata = classifier.metadata;
+  const training = imageModelState.phase === 'training';
+
+  let summary: string;
+  if (training) {
+    summary = imageModelState.message;
+  } else if (metadata) {
+    const accuracy = typeof metadata.validationAccuracy === 'number'
+      ? ` · validación ${(metadata.validationAccuracy * 100).toFixed(1)} %`
+      : '';
+    const origin = classifier.source === 'publicado'
+      ? 'Modelo publicado en public/model'
+      : `Entrenado en este dispositivo con ${metadata.referenceImages ?? REFERENCE_IMAGES.length} fotografías`;
+    summary = `${origin} · ${metadata.labels.length} clases (${metadata.labels.join(', ')})${accuracy}. ${imageModelState.message}`.trim();
+  } else {
+    summary = imageModelState.message || `${REFERENCE_IMAGES.length} fotografías disponibles en dataset/imagenes. El modelo se entrenará automáticamente.`;
+  }
+
+  status.textContent = summary;
+  if (badge) {
+    badge.textContent = training ? 'Entrenando' : metadata ? (classifier.source === 'publicado' ? 'Publicado' : 'Local') : imageModelState.phase === 'error' ? 'Error' : 'Pendiente';
+    badge.dataset.state = training ? 'training' : metadata ? 'ready' : imageModelState.phase;
+  }
+  if (progress) progress.style.width = `${Math.round((training ? imageModelState.progress : metadata ? 1 : 0) * 100)}%`;
+  if (retrain) {
+    retrain.disabled = training;
+    retrain.textContent = training ? 'Entrenando…' : 'Reentrenar con imágenes';
+  }
+  if (exportButton) exportButton.disabled = training || !metadata;
+}
+
+function readyLabelsText(): string {
+  const allowed = new Set(labelsForRecognitionMode());
+  const personal = personalClassifier.readyLabels(allowed);
+  const model = classifier.coveredLabels(allowed);
+  if (recognitionMode === 'alphabet') {
+    return `Abecedario listo: ${sortLabels([...(model.length ? [] : DEFAULT_ALPHABET_LABELS), ...model, ...personal]).join(', ')}`;
+  }
+  if (recognitionMode === 'numbers') {
+    const ready = sortLabels([...model, ...personal]);
+    return `Números listos: ${ready.length ? ready.join(', ') : '0–4 disponibles por reglas'}`;
+  }
+  const ready = sortLabels([...model, ...personal]);
+  return `Palabras listas: ${ready.length ? `${ready.length}/50 · ${ready.join(', ')}` : '0/50 · entrena cada palabra antes de reconocerla'}`;
+}
+
+function sortLabels(labels: string[]): string[] {
+  return [...new Set(labels)].sort(compareLabels);
+}
+
+function describeNumberRange(labels: string[]): string {
+  const values = labels.map(Number).filter(Number.isInteger).sort((a, b) => a - b);
+  if (!values.length) return '—';
+  const contiguous = values.every((value, index) => index === 0 || value === values[index - 1] + 1);
+  return contiguous && values.length > 2 ? `${values[0]}–${values[values.length - 1]}` : values.join(', ');
 }
 
 async function bindTraining(): Promise<void> {
@@ -318,6 +469,7 @@ function stopCamera(): void {
   frameSamples = [];
   pilotRecognizer.reset();
   alphabetRecognizer.reset();
+  classifier.resetSmoothing();
   lastSpokenLabel = '';
   captureRemaining = 0;
   const video = document.querySelector<HTMLVideoElement>('#camera');
@@ -358,14 +510,22 @@ function processFrame(timestamp: number): void {
   } else {
     let prediction: Prediction | null = null;
     if (result.landmarks.length > 0) {
-      const features = normalizeHands(result.landmarks);
       const allowedLabels = new Set(labelsForRecognitionMode());
-      prediction = classifier.isTrained
-        ? classifier.predict(features)
-        : personalClassifier.predict(features, allowedLabels)
+      const personal = personalClassifier.predict(normalizeHands(result.landmarks), allowedLabels);
+      const model = classifier.covers(allowedLabels)
+        ? classifier.predictHands(result.landmarks, video.videoWidth, video.videoHeight, allowedLabels)
+        : null;
+      if (model) {
+        // El modelo de imágenes tiene prioridad; las muestras personales cubren lo que no reconoce con seguridad.
+        prediction = model.accepted || !personal?.accepted ? model : personal;
+      } else {
+        prediction = personal
           ?? (recognitionMode === 'numbers'
             ? pilotRecognizer.predict(result.landmarks)
             : recognitionMode === 'alphabet' ? alphabetRecognizer.predict(result.landmarks) : null);
+      }
+    } else {
+      classifier.resetSmoothing();
     }
     updateRecognition(prediction, metrics);
   }
@@ -385,13 +545,10 @@ function updateRecognition(prediction: Prediction | null, metrics: RuntimeMetric
       : hasReadyClasses ? 'Seña no reconocida' : 'Primero entrena una clase';
     confidenceText.textContent = 'Confianza: —';
     confidenceFill.style.width = '0%';
-  } else if (prediction.kind === 'integration-demo') {
-    label.textContent = prediction.label;
-    confidenceText.textContent = `Salida técnica: ${(prediction.confidence * 100).toFixed(1)} %`;
-    confidenceFill.style.width = `${prediction.confidence * 100}%`;
   } else {
     label.textContent = prediction.accepted ? prediction.label : 'Seña no reconocida';
     if (prediction.kind === 'rule-based-pilot' && !prediction.accepted) label.textContent = prediction.label;
+    if (prediction.kind === 'trained-model' && !prediction.accepted && prediction.confidence >= 0.45) label.textContent = `Analizando ${prediction.label}…`;
     confidenceText.textContent = `${prediction.kind === 'rule-based-pilot' ? 'Estabilidad' : 'Confianza'}: ${(prediction.confidence * 100).toFixed(1)} % · inferencia ${prediction.inferenceMs.toFixed(1)} ms`;
     confidenceFill.style.width = `${prediction.confidence * 100}%`;
     if (prediction.accepted) speakAutomatically(prediction.label);
@@ -429,14 +586,9 @@ function changeRecognitionMode(): void {
   recognitionMode = required<HTMLSelectElement>('recognition-mode').value as RecognitionMode;
   pilotRecognizer.reset();
   alphabetRecognizer.reset();
+  classifier.resetSmoothing();
   lastSpokenLabel = '';
-  const allowed = new Set(labelsForRecognitionMode());
-  const ready = personalClassifier.readyLabels(allowed);
-  required<HTMLElement>('ready-labels').textContent = recognitionMode === 'alphabet'
-    ? `Abecedario listo: ${[...new Set([...DEFAULT_ALPHABET_LABELS, ...ready])].join(', ')}`
-    : recognitionMode === 'numbers'
-      ? `Números listos: ${ready.length ? ready.join(', ') : '0–4 disponibles por reglas'}`
-      : `Palabras listas: ${ready.length ? `${ready.length}/50 · ${ready.join(', ')}` : '0/50 · entrena cada palabra antes de reconocerla'}`;
+  required<HTMLElement>('ready-labels').textContent = readyLabelsText();
   required<HTMLElement>('prediction-label').textContent = 'Sin predicción';
   required<HTMLElement>('confidence-text').textContent = 'Confianza: —';
   required<HTMLElement>('confidence-fill').style.width = '0%';

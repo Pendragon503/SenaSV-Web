@@ -137,6 +137,17 @@ h1 { max-width: 15ch; margin: 0; color: var(--blue-900); font-size: clamp(2.4rem
 .confidence-track { height: .55rem; border-radius: 999px; background: #dfe8ee; overflow: hidden; }
 .confidence-fill { width: 0; height: 100%; background: var(--blue-500); transition: width .25s ease; }
 .notice { margin: 0; color: var(--warning); font-size: .88rem; line-height: 1.45; }
+.model-card { display: grid; gap: .65rem; padding: 1rem; border: 1px solid var(--border); border-radius: .55rem; background: #f7f9fa; }
+.model-card-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.model-card-head small { color: var(--blue-700); font-size: .72rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.model-badge { padding: .2rem .55rem; border-radius: 999px; color: var(--muted); background: #e6ecf0; font-size: .72rem; font-weight: 800; }
+.model-badge[data-state="ready"] { color: #07553c; background: #dff5eb; }
+.model-badge[data-state="training"] { color: #6c5410; background: #fff1c9; }
+.model-badge[data-state="error"] { color: var(--danger); background: #f8e3e3; }
+.model-card p { margin: 0; color: var(--blue-900); font-size: .8rem; line-height: 1.45; overflow-wrap: anywhere; }
+.model-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.model-actions .button { flex: 1 1 10rem; padding: .6rem .8rem; font-size: .82rem; }
+.model-actions .button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
 .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: .7rem; }
 .metric { padding: .8rem; border: 1px solid #d8e3e8; border-radius: .45rem; background: #eef4f6; }
 .metric span { display: block; color: var(--muted); font-size: .75rem; }.metric strong { color: var(--blue-900); }
