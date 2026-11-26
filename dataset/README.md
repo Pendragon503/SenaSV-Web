@@ -1,4 +1,24 @@
-# Dataset privado para 50 palabras LESSA
+# Datasets de SeñaSV
+
+## Fotografías de referencia (`dataset/imagenes/`)
+
+Fotografías fijas de configuraciones manuales con las que la aplicación entrena su modelo base de abecedario y números. Esta carpeta **sí** se versiona en Git.
+
+```text
+dataset/imagenes/
+  letras/   fotografías de letras estáticas seleccionadas
+  numeros/  0.jpg … 5.jpg
+```
+
+- El nombre del archivo es la etiqueta. `N-.jpg` (también `NN.jpg` o `ENIE.jpg`) corresponde a la **Ñ**.
+- Para más fotografías de la misma clase usa un sufijo con `@`: `A@2.jpg`, `A@persona3.jpg`. Más personas, ángulos e iluminaciones por clase mejoran mucho la precisión: con una sola imagen por clase el modelo depende del aumento de datos.
+- Las fotos proceden del aporte de KevinGuzman1 en la rama `branch1-senaSV-patch-1`. El Módulo I sirvió para contrastar las configuraciones. Las muestras de 6–9 mostraban una sola mano y el módulo usa dos. Se excluyeron también Ñ por su movimiento y P y Q por diferencias de orientación pendientes de revisión.
+- Vite descubre los archivos automáticamente (`src/reference-dataset.ts`). Cuando cambia su contenido en producción se invalida el modelo anterior. Puedes volver a entrenar desde Reconocimiento.
+- Documenta el origen y la autorización de cada fotografía antes de publicarla, igual que con cualquier otra muestra (ver `docs/FUENTES_Y_DATOS.md`).
+
+Flujo de entrenamiento (en el navegador, `src/image-trainer.ts`): MediaPipe extrae 21 landmarks por fotografía → normalización independiente de la relación de aspecto → 240 variaciones sintéticas por clase (giros 3D, apertura de dedos, proporciones, ruido y mano espejo) → red densa 63-128-64-N → guardado en IndexedDB y exportación opcional a `public/model/`.
+
+## Dataset privado para 50 palabras LESSA
 
 Los videos originales y landmarks de participantes no se almacenan en Git. La carpeta local `dataset/private/` está excluida mediante `.gitignore`.
 

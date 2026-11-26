@@ -1,3 +1,5 @@
+import { compareLabels, referenceLabels } from './reference-dataset';
+
 export type ClassStatus = 'piloto' | 'planificada';
 export type ValidationStatus = 'presencia-verificada' | 'pendiente-validacion-signo';
 
@@ -55,25 +57,35 @@ export const sources: CatalogSource[] = [
   },
 ];
 
-// Piloto deliberadamente estático para validar primero cámara, landmarks y clasificador.
+const ruleLetters = ['A', 'B', 'D', 'F', 'G', 'H', 'I', 'L', 'U', 'V', 'W', 'Y'];
+const ruleNumbers = ['0', '1', '2', '3', '4'];
+const imageLetters = new Set(referenceLabels('alphabet'));
+const imageNumbers = new Set(referenceLabels('numbers'));
+const imageModelNote = 'Cobertura experimental con fotografías aportadas por KevinGuzman1. Requiere validación con personas signantes en LESSA.';
+
+// Piloto: reglas geométricas más las clases presentes en las fotografías de referencia.
 export const pilotClasses: SignClass[] = [
-  ...['A', 'B', 'D', 'F', 'G', 'H', 'I', 'L', 'U', 'V', 'W', 'Y'].map((label) => ({
+  ...[...new Set([...ruleLetters, ...imageLetters])].sort(compareLabels).map((label) => ({
     id: `alfabeto-${label.toLowerCase()}`,
     label,
     category: 'Abecedario' as const,
     status: 'piloto' as const,
-    validation: 'presencia-verificada' as const,
+    validation: ruleLetters.includes(label) ? 'presencia-verificada' as const : 'pendiente-validacion-signo' as const,
     sourceId: 'lessa-modulo1' as const,
-    notes: 'Regla geométrica provisional. Contrastar configuración y orientación con el Módulo I y validarla con una persona competente.',
+    notes: imageLetters.has(label)
+      ? imageModelNote
+      : 'Regla geométrica provisional. Contrastar configuración y orientación con el Módulo I y validarla con una persona competente.',
   })),
-  ...['0', '1', '2', '3', '4'].map((label) => ({
+  ...[...new Set([...ruleNumbers, ...imageNumbers])].sort(compareLabels).map((label) => ({
     id: `numero-${label}`,
     label,
     category: 'Números' as const,
     status: 'piloto' as const,
-    validation: 'presencia-verificada' as const,
+    validation: ruleNumbers.includes(label) ? 'presencia-verificada' as const : 'pendiente-validacion-signo' as const,
     sourceId: 'dees-lessa' as const,
-    notes: 'Confirmar orientación, mano dominante y variantes antes de capturar.',
+    notes: imageNumbers.has(label)
+      ? imageModelNote
+      : 'Confirmar orientación, mano dominante y variantes antes de capturar.',
   })),
 ];
 

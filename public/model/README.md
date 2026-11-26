@@ -1,14 +1,34 @@
 # Modelo de reconocimiento
 
-Esta carpeta recibirá el modelo entrenado del conjunto piloto:
+Esta carpeta recibe el modelo publicado que usan todos los dispositivos:
 
-- `model.json`
-- uno o más archivos `.bin` con los pesos
-- `labels.json`, un arreglo JSON en el mismo orden que las salidas del modelo
+- `model.json` (topología + metadatos SeñaSV en `userDefinedMetadata.senasv`)
+- `model.weights.bin` (pesos)
 
-El modelo debe aceptar 126 valores: 21 puntos × 3 coordenadas × 2 manos. Si solo se detecta una mano, la segunda mitad se completa con ceros.
+Si la carpeta no contiene un modelo compatible, Reconocimiento conserva las reglas y permite entrenar un modelo desde las fotografías de `dataset/imagenes/`. El modelo local se guarda en IndexedDB.
 
-Mientras estos archivos no existan, la aplicación usa una capa densa determinista únicamente para comprobar la integración de TensorFlow.js. Sus etiquetas `MUESTRA A`, `MUESTRA B` y `MUESTRA C` no representan señas de LESSA.
+## Publicar el modelo entrenado con imágenes
+
+1. Sirve una compilación de producción y abre **Reconocimiento**. Pulsa **Entrenar con imágenes** o **Reentrenar con imágenes**.
+2. Revisa en la tarjeta «Modelo de imágenes LESSA» la precisión de validación y si alguna imagen no pudo leerse.
+3. Pulsa **Exportar modelo** y utiliza los botones de descarga para guardar `model.json` y `model.weights.bin`.
+4. Copia ambos archivos en esta carpeta y publica el repositorio.
+
+El modelo publicado incluye la versión del dataset (`datasetVersion`). Cuando las fotografías cambian, genera un modelo compatible con la nueva compilación.
+
+## Contrato del modelo
+
+`userDefinedMetadata.senasv` describe cómo usar el modelo:
+
+| Campo | Significado |
+| --- | --- |
+| `labels` | Etiquetas en el mismo orden que las salidas. |
+| `groups` | Grupo de cada etiqueta (`alphabet`, `numbers`). La softmax se calcula solo dentro del grupo activo, porque varias señas comparten configuración (p. ej. V y 2, W y 6, O y 0). |
+| `features` | `metric-single-hand-v1`: 63 valores de una mano (21 puntos × 3), con coordenadas llevadas a proporción de píxeles antes de normalizar, de modo que una fotografía cuadrada y una cámara 16:9 producen la misma forma. Origen en la muñeca; escala = tamaño medio de la palma. Ver `src/landmark-features.ts`. |
+| `output` | `logits`: la última capa es lineal y la aplicación aplica la softmax enmascarada. |
+| `validationAccuracy` | Exactitud sobre variaciones aumentadas no vistas. Es optimista: no sustituye la evaluación con personas signantes reales. |
+
+Contrato anterior, aún compatible: un `model.json` sin metadatos más `labels.json`, con 126 valores de entrada (`normalizeHands`, dos manos) y salida softmax.
 
 ## Vocabulario objetivo de 50 palabras
 
@@ -22,4 +42,4 @@ Meta mínima recomendada para el primer entrenamiento colectivo:
 - separación de entrenamiento, validación y prueba por participante;
 - evaluación con macro-F1 y matriz de confusión para las 50 clases.
 
-Las palabras dinámicas requieren ventanas temporales; una sola postura de 126 valores no representa por completo su movimiento. El clasificador personal actual sirve para validar el flujo de captura, pero el modelo colectivo deberá utilizar secuencias de landmarks.
+Las palabras dinámicas requieren ventanas temporales; una sola postura de landmarks no representa por completo su movimiento. El clasificador personal actual sirve para validar el flujo de captura, pero el modelo colectivo deberá utilizar secuencias de landmarks.

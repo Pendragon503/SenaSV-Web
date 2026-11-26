@@ -13,7 +13,7 @@ export interface Prediction {
   confidence: number;
   accepted: boolean;
   inferenceMs: number;
-  kind: 'integration-demo' | 'rule-based-pilot' | 'personal-model' | 'trained-model';
+  kind: 'rule-based-pilot' | 'personal-model' | 'trained-model';
 }
 
 export interface RuntimeMetrics {
